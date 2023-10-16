@@ -195,3 +195,33 @@ class Adam:
                     print(f'Epoch {epoch} loss: {current_loss}, accuracy: {acc}')
 
         return w, self.loss_history if self.record_loss else None
+
+class SGD:
+    def __init__(self, lr=0.01, decay=0, momentum=0):
+        self.lr = lr  # learning rate
+        self.decay = decay  # decay rate for the learning rate
+        self.momentum = momentum  # momentum factor
+        self.iterations = 0  # number of iterations completed (used for decay)
+        self.v_w = None  # velocity for weights (used for momentum)
+        self.v_b = None  # velocity for biases (used for momentum)
+
+    def update(self, weights, biases, grads):
+        self.iterations += 1  # update the iteration count
+        lr_t = self.lr * (1. / (1. + self.decay * self.iterations))  # calculate decayed lr
+
+        # initialize velocities if they don't exist yet
+        if self.v_w is None:
+            self.v_w = [np.zeros_like(w) for w in weights]
+            self.v_b = [np.zeros_like(b) for b in biases]
+
+        for i in range(len(weights)):
+            # calculate velocity updates for momentum
+            if self.momentum > 0:
+                self.v_w[i] = self.momentum * self.v_w[i] - lr_t * grads[f'W{i+1}']
+                self.v_b[i] = self.momentum * self.v_b[i] - lr_t * grads[f'b{i+1}']
+                weights[i] += self.v_w[i]
+                biases[i] += self.v_b[i]
+            else:
+                # standard SGD update (without momentum)
+                weights[i] -= lr_t * grads[f'W{i+1}']
+                biases[i] -= lr_t * grads[f'b{i+1}']

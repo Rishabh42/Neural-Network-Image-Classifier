@@ -9,12 +9,12 @@ class ActivationFunction(ABC):
     """Base class for activation functions."""
 
     @abstractmethod
-    def backward(self, Z: np.ndarray) -> np.ndarray:
+    def forward(self, Z: np.ndarray) -> np.ndarray:
         """Computes the value of the activation function at point :Z:"""
         raise NotImplementedError
 
     @abstractmethod
-    def backward(self, Z: np.ndarray) -> np.ndarray:
+    def gradient(self, Z: np.ndarray) -> np.ndarray:
         """Computes the gradient of the activation at point :Z:"""
         raise NotImplementedError
 
@@ -24,7 +24,7 @@ class Logistic(ActivationFunction):
     def forward(self, Z: np.ndarray) -> np.ndarray:
         return logistic_function(Z)
 
-    def backward(self, Z: np.ndarray) -> np.ndarray:
+    def gradient(self, Z: np.ndarray) -> np.ndarray:
         l = self.forward(Z)
         return l * (1 - l)
 
@@ -34,7 +34,7 @@ class Tanh(ActivationFunction):
     def forward(self, Z: np.ndarray) -> np.ndarray:
         return 2 * logistic_function(2 * Z) - 1
 
-    def backward(self, Z: np.ndarray) -> np.ndarray:
+    def gradient(self, Z: np.ndarray) -> np.ndarray:
         return 1 - np.square(self.forward(Z))
 
 
@@ -43,7 +43,7 @@ class ReLU(ActivationFunction):
     def forward(self, Z: np.ndarray) -> np.ndarray:
         return np.maximum(0, Z)
 
-    def backward(self, Z: np.ndarray) -> np.ndarray:
+    def gradient(self, Z: np.ndarray) -> np.ndarray:
         return (Z > 0).astype(int)
 
 
@@ -53,7 +53,7 @@ class Softmax(ActivationFunction):
         Z_exp = np.exp(Z - np.max(Z, axis=1, keepdims=True))
         return Z_exp / np.sum(Z_exp, axis=1, keepdims=True)
 
-    def backward(self, z):
+    def gradient(self, Z):
         #return self.forward(z) * self.forward(1 - z)
         # usually you compute the gradient of the loss function with respect to the inputs of the Softmax function during backprop
         raise NotImplementedError
