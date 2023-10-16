@@ -5,7 +5,7 @@ def logistic_function(Z: np.ndarray) -> np.ndarray:
     """Computes the logistic of Z, handling large inputs by avoiding numerical overflow."""
     return 1. / (1 + np.exp(-np.clip(Z, -500, 500)))
 
-class Activation(ABC):
+class ActivationFunction(ABC):
     """Base class for activation functions."""
 
     @abstractmethod
@@ -19,7 +19,7 @@ class Activation(ABC):
         raise NotImplementedError
 
 
-class Logistic(Activation):
+class Logistic(ActivationFunction):
 
     def forward(self, Z: np.ndarray) -> np.ndarray:
         return logistic_function(Z)
@@ -29,7 +29,7 @@ class Logistic(Activation):
         return l * (1 - l)
 
 
-class Tanh(Activation):
+class Tanh(ActivationFunction):
 
     def forward(self, Z: np.ndarray) -> np.ndarray:
         return 2 * logistic_function(2 * Z) - 1
@@ -38,7 +38,7 @@ class Tanh(Activation):
         return 1 - np.square(self.forward(Z))
 
 
-class ReLU(Activation):
+class ReLU(ActivationFunction):
 
     def forward(self, Z: np.ndarray) -> np.ndarray:
         return np.maximum(0, Z)
@@ -47,7 +47,7 @@ class ReLU(Activation):
         return (Z > 0).astype(int)
 
 
-class Softmax(Activation):
+class Softmax(ActivationFunction):
 
     def forward(self, Z: np.ndarray) -> np.ndarray:
         Z_exp = np.exp(Z - np.max(Z, axis=1, keepdims=True))
