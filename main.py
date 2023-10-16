@@ -1,6 +1,6 @@
 import json
 import numpy as np
-from data_acquisition.data_acquisition import load_fashion_mnist
+from utils.data_acquisition import load_fashion_mnist
 from models.mlp import MLP
 from utils.activations import ReLU, Softmax, Logistic, Tanh
 from utils.loss_functions import CrossEntropyLoss
