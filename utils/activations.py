@@ -1,16 +1,19 @@
 import numpy as np
+from abc import ABC, abstractmethod
 
 def logistic_function(Z: np.ndarray) -> np.ndarray:
     """Computes the logistic of Z, handling large inputs by avoiding numerical overflow."""
     return 1. / (1 + np.exp(-np.clip(Z, -500, 500)))
 
-class Activation:
+class Activation(ABC):
     """Base class for activation functions."""
 
+    @abstractmethod
     def backward(self, Z: np.ndarray) -> np.ndarray:
         """Computes the value of the activation function at point :Z:"""
         raise NotImplementedError
 
+    @abstractmethod
     def backward(self, Z: np.ndarray) -> np.ndarray:
         """Computes the gradient of the activation at point :Z:"""
         raise NotImplementedError
