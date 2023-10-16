@@ -1,24 +1,22 @@
-from abc import ABC, abstractmethod
 import numpy as np
 
+def logistic_function(Z: np.ndarray) -> np.ndarray:
+    """Computes the logistic of Z, handling large inputs by avoiding numerical overflow."""
+    return 1. / (1 + np.exp(-np.clip(Z, -500, 500)))
 
-class Activation(ABC):
+class Activation:
+    """Base class for activation functions."""
 
-    @abstractmethod
     def backward(self, Z: np.ndarray) -> np.ndarray:
         """Computes the value of the activation function at point :Z:"""
         raise NotImplementedError
 
-    @abstractmethod
     def backward(self, Z: np.ndarray) -> np.ndarray:
         """Computes the gradient of the activation at point :Z:"""
         raise NotImplementedError
 
 
 class Logistic(Activation):
-
-    def __init__(self):
-        pass
 
     def forward(self, Z):
 
@@ -31,10 +29,6 @@ class Logistic(Activation):
 
 class Tanh(Activation):
 
-    def __init__(self):
-        self.logistic = lambda Z: 1. / (1 + np.exp(-Z))
-        pass
-
     def forward(self, Z):
         return 2 * self.logistic(Z) - 1
 
@@ -43,9 +37,6 @@ class Tanh(Activation):
 
 
 class ReLU(Activation):
-
-    def __init__(self):
-        pass
 
     def forward(self, Z):
         return np.maximum(0, Z)
@@ -58,8 +49,6 @@ class ReLU(Activation):
 
 
 class Softmax(Activation):
-    def __init__(self):
-        pass
 
     def forward(self, z):
         """Implement softmax to avoid overflow"""
