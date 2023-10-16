@@ -5,14 +5,14 @@ import numpy as np
 class Activation(ABC):
 
     @abstractmethod
-    def forward(self, Z):
+    def backward(self, Z: np.ndarray) -> np.ndarray:
         """Computes the value of the activation function at point :Z:"""
-        pass
+        raise NotImplementedError
 
     @abstractmethod
-    def backward(self, Z):
+    def backward(self, Z: np.ndarray) -> np.ndarray:
         """Computes the gradient of the activation at point :Z:"""
-        pass
+        raise NotImplementedError
 
 
 class Logistic(Activation):
