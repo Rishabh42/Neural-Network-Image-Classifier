@@ -28,4 +28,5 @@ class CrossEntropyLoss(LossFunction):
         return loss
 
     def gradient(self, y_true, y_pred):
+        # assumes softmax activation function
         return y_pred - y_true
