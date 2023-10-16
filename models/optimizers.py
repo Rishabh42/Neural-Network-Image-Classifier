@@ -23,7 +23,7 @@ class StochasticGradientDescent:
     """
 
     def __init__(self, learning_rate=0.1, n_epochs=100, epsilon=1e-8, batch_size=1, momentum=0.0, 
-                 regularization=None, lambd=None, record_loss=False, verbose=False):
+                 regularization=None, lambd=0.0, record_loss=False, verbose=False):
         self.learning_rate = learning_rate
         self.n_epochs = n_epochs
         self.epsilon = epsilon
@@ -32,7 +32,7 @@ class StochasticGradientDescent:
         self.record_loss = record_loss
         self.loss_history = [] if record_loss else None
         self.regularization = regularization
-        self.lambd = lambd if regularization else 0
+        self.lambd = lambd
 
         self.momentum = momentum # reduces to standard gradient descent when momentum = 0
         self.velocity_w = None
@@ -49,16 +49,14 @@ class StochasticGradientDescent:
         return 0    # if no regualrization
     
     def update_params(self, w, b, dw, db, layer):
-        """updates params with momentum"""
-        if self.velocity_w is None or self.velocity_b is None:
-            self.velocity_w, self.velocity_b = {}, {}
-            for l in w.keys():
-                self.velocity_w[l] = np.zeros_like(w[l])
-                self.velocity_b[l] = np.zeros_like(b[l])
+        """updates params with momentum using velocity"""
+        # ref: Deep Learning Textbook by Goodfellow, Bengio, and Courville Chapter 8
+        # calc reg term for w
+        reg_term_w = self.regularization_term(w[layer])
 
-        # update velocity   
-        self.velocity_w[layer] = self.momentum * self.velocity_w[layer] - self.learning_rate * dw
-        self.velocity_b[layer] = self.momentum * self.velocity_b[layer] - self.learning_rate * db
+        # velocity = momentum * velocity - learning_rate * gradient
+        self.velocity_w[layer] = self.momentum * self.velocity_w[layer] - self.learning_rate * (dw + reg_term_w)
+        self.velocity_b[layer] = self.momentum * self.velocity_b[layer] - self.learning_rate * db  # no reg term
 
         # update params
         w[layer] += self.velocity_w[layer]
@@ -72,8 +70,13 @@ class StochasticGradientDescent:
         n_layers = len(w) + 1  # assuming w is a dictionary of weights per layer
         steps_per_epoch = X.shape[0] // self.batch_size
 
+        # init velocity
+        self.velocity_w = {l: np.zeros_like(wl) for l, wl in w.items()}
+        self.velocity_b = {l: np.zeros_like(bl) for l, bl in b.items()}
+
         for epoch in range(self.n_epochs):
             for t in range(steps_per_epoch):
+                # NOTE: random sampling without replacement does not make sure that all samples are used
                 batch_idc = np.random.choice(X.shape[0], self.batch_size, replace=False)
                 X_batch, y_batch = X[batch_idc], y[batch_idc]
 
@@ -81,20 +84,21 @@ class StochasticGradientDescent:
                 z, a = forward_fn(X_batch)
                 dz = backward_fn(z, a, y_batch, loss_fn)
 
-                if self.record_loss:
-                    current_loss = loss_fn.loss(y_batch, a[n_layers - 1])
-                    self.loss_history.append(current_loss)
-
-                # update params
                 for i in range(1, n_layers):
+                    # compute gradients
+                    dw = np.dot(a[i - 1].T, dz[i]) / self.batch_size
+                    db = np.mean(dz[i], axis=0, keepdims=True)
 
-                    dw = (np.dot(a[i - 1].T, dz[i]) + self.regularization_term(w[i])) / self.batch_size
-                    db = np.mean(dz[i], axis=0, keepdims=True) + self.regularization_term(b[i])
+                    # update params
+                    w, b = self.update_params(w, b, dw, db, i)
 
-                    self.update_params(w, b, dw, db, i)
+            if self.record_loss:
+                _, a = forward_fn(X, w, b)
+                current_loss = loss_fn.loss(y, a[n_layers - 1])
+                self.loss_history.append(current_loss)
 
-                if self.verbose and (t == 0) and (epoch % 10 == 0):
-                    acc = evaluate_acc(y_batch, a[n_layers-1])
+                if self.verbose and epoch % 10 == 0:
+                    acc = evaluate_acc(y, a[n_layers-1])
                     print(f'Epoch {epoch} loss: {current_loss}, accuracy: {acc}')
 
         return w, self.loss_history if self.record_loss else None
