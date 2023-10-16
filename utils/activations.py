@@ -18,44 +18,39 @@ class Activation:
 
 class Logistic(Activation):
 
-    def forward(self, Z):
+    def forward(self, Z: np.ndarray) -> np.ndarray:
+        return logistic_function(Z)
 
-        return 1. / (1 + np.exp(-Z))
-
-    def backward(self, Z):
+    def backward(self, Z: np.ndarray) -> np.ndarray:
         l = self.forward(Z)
         return l * (1 - l)
 
 
 class Tanh(Activation):
 
-    def forward(self, Z):
-        return 2 * self.logistic(Z) - 1
+    def forward(self, Z: np.ndarray) -> np.ndarray:
+        return 2 * logistic_function(2 * Z) - 1
 
-    def backward(self, Z):
-        return 1 - self.logistic(Z)**2
+    def backward(self, Z: np.ndarray) -> np.ndarray:
+        return 1 - np.square(self.forward(Z))
 
 
 class ReLU(Activation):
 
-    def forward(self, Z):
+    def forward(self, Z: np.ndarray) -> np.ndarray:
         return np.maximum(0, Z)
 
-    def backward(self, Z):
-        A = np.copy(Z)
-        A[Z <= 0] = 0
-        A[Z > 0] = 1
-        return A
+    def backward(self, Z: np.ndarray) -> np.ndarray:
+        return (Z > 0).astype(int)
 
 
 class Softmax(Activation):
 
-    def forward(self, z):
-        """Implement softmax to avoid overflow"""
-        eps = 1e-8
-        return np.exp(z - np.max(z, axis=1, keepdims=True)) / (
-                np.sum(np.exp(z - np.max(z, axis=1, keepdims=True)), axis=1,
-                       keepdims=True) + eps)
+    def forward(self, Z: np.ndarray) -> np.ndarray:
+        Z_exp = np.exp(Z - np.max(Z, axis=1, keepdims=True))
+        return Z_exp / np.sum(Z_exp, axis=1, keepdims=True)
 
     def backward(self, z):
-        return self.forward(z) * self.forward(1 - z)
+        #return self.forward(z) * self.forward(1 - z)
+        # usually you compute the gradient of the loss function with respect to the inputs of the Softmax function during backprop
+        raise NotImplementedError
