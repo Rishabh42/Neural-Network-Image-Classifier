@@ -62,7 +62,9 @@ def compare_accuracies(histories, labels, figsize=(8, 4), plot_train=True,
     for history, label in zip(histories, labels):
         if plot_train:
             plt.plot(history['train_acc'], label=f'Train ({label})')
-        plt.plot(history['test_acc'], label=f'Test ({label})')
+            plt.plot(history['test_acc'], label=f'Test ({label})')
+        else:
+            plt.plot(history['test_acc'], label=label)
 
     plt.title(title)
     plt.xlabel('Epoch')
