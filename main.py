@@ -64,6 +64,67 @@ def exp1(optimizer_kwargs, optimizer_name, filepath='./out/exp1/',
 
     return histories, final_accuracies
 
+def exp2(optimizer_kwargs, optimizer_name,filepath='./out/exp2/', epochs=100, batch_size=256, verbose=True):
+    X_train, X_test, y_train_oh, y_test_oh = load_and_preprocess_data('./data/F_MNIST_data', dataset_name='F_MNIST')
+
+    model_architectures = [
+        {
+            'name': 'No Hidden Layers',
+            'layer_sizes': [X_train.shape[1], y_train_oh.shape[1]],
+        },
+        {
+            'name': 'Single Hidden Layer',
+            'layer_sizes': [X_train.shape[1], 128, y_train_oh.shape[1]],
+        },
+        {
+            'name': 'Two Hidden Layers',
+            'layer_sizes': [X_train.shape[1], 128, 128, y_train_oh.shape[1]],
+        },
+    ]
+
+    histories = []
+    final_accuracies = []
+
+    for architecture in model_architectures:
+        print(f"Training {architecture['name']} model...")
+        model = MLP(
+            layer_sizes=architecture['layer_sizes'],
+            act_fn=ReLU(),
+            loss_fn=CrossEntropyLoss(),
+            softmax_fn=Softmax(),
+            weight_initializer=kaiming,
+        )
+
+        if optimizer_name == 'SGD':
+            optimizer = SGD(**optimizer_kwargs)
+        elif optimizer_name == 'Adam':
+            optimizer = Adam(**optimizer_kwargs)
+
+        history = model.fit(
+            X_train, y_train_oh, optimizer, X_test=X_test, y_test=y_test_oh,
+            epochs=epochs, batch_size=batch_size, verbose=verbose
+        )
+
+        histories.append(history)
+
+        # Calculate and record the final test accuracy
+        final_test_acc = np.mean(np.argmax(model.forward(X_test)[-1], axis=1) == np.argmax(y_test_oh, axis=1))
+        final_accuracies.append((architecture['name'], final_test_acc))
+
+        print(f"{architecture['name']} Model - Final Test Accuracy: {final_test_acc:.4f}\n")
+
+        #TODO:save history
+        #TODO: create plots (later)
+
+    # Save final accuracies
+    with open(f'{filepath}/final_accuracies.pickle', 'wb') as f:
+        pickle.dump(final_accuracies, f)
+
+    # Save training histories and create plots for comparison
+    # Implement the functions to save and compare results or use libraries like Matplotlib.
+
+    return histories, final_accuracies
+
 def exp6(optimizer_kwargs, filepath='./out/exp6', stride=1, kernel=3, 
          padding=1, epochs=100, batch_size=16, verbose=True):
     """Implement CNN with Pytorch"""
@@ -170,5 +231,6 @@ if __name__ == '__main__':
     #     'epochs': [1]
     # }
 
-    exp6_grid_search(param_grid, verbose=True)
+    # exp6_grid_search(param_grid, verbose=True)
+    exp2(optimizer_kwargs,'SGD', verbose=True)
 
