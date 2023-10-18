@@ -64,6 +64,7 @@ def exp1(optimizer_kwargs, optimizer_name, filepath='./out/exp1/',
 
     return histories, final_accuracies
 
+
 def exp6(optimizer_kwargs, filepath='./out/exp6', stride=1, kernel=3, 
          padding=1, epochs=100, batch_size=16, verbose=True):
     """Implement CNN with Pytorch"""
@@ -76,7 +77,7 @@ def exp6(optimizer_kwargs, filepath='./out/exp6', stride=1, kernel=3,
     final_accuracies = []
 
 
-def exp6_grid_search(param_grid, filepath='./out/exp6/grid_search', verbose=False):
+def cnn_grid_search(param_grid, filepath='./out/grid_search/cnn', verbose=False):
 
     trainset, testset = load_and_preprocess_data('./data/F_MNIST_data', dataset_name='F_MNIST', normalize=True, mlp=False)
 
@@ -132,20 +133,19 @@ def exp6_grid_search(param_grid, filepath='./out/exp6/grid_search', verbose=Fals
 
 if __name__ == '__main__':
 
-    optimizer_kwargs = {
-        'lr': 0.01, 
-        'decay': 1e-6, 
-        'momentum': 0.9,
-        'regularization': 'l2',
-        'lambd': 0.001
-        }
-    optimizer = 'SGD'
-    batch_size = 256
-    epochs = 100
+    ### Grid Search ###
 
-    #exp1(optimizer_kwargs, optimizer_name=optimizer, epochs=epochs, batch_size=batch_size)
+    ## MLP ##
+    param_grid = {
+        'lr': [0.001, 0.01, 0.1],
+        'momentum': [0, 0.9],
+        'regularization': [None],
+        'optimizer': ['SGD'],
+        'batch_size': [16, 32, 64, 128],
+        'epochs': [100]
+    }
 
-
+    ## CNN ##
     param_grid = {
         'conv1_out': [16, 32],
         'conv2_out': [32, 64],
@@ -157,18 +157,16 @@ if __name__ == '__main__':
         'batch_size': [16, 32, 64],
         'epochs': [5]
     }
+    cnn_grid_search(param_grid, verbose=True)
 
-    # param_grid = {
-    #     'conv1_out': [16],
-    #     'conv2_out': [32],
-    #     'stride': [1],
-    #     'kernel_size': [3],
-    #     'padding': [1],
-    #     'optimizer': ['Adam'],
-    #     'lr': [0.001],
-    #     'batch_size': [16],
-    #     'epochs': [1]
-    # }
-
-    exp6_grid_search(param_grid, verbose=True)
-
+    optimizer_kwargs = {
+        'lr': 0.01, 
+        'decay': 1e-6, 
+        'momentum': 0.9,
+        'regularization': 'l2',
+        'lambd': 0.001
+        }
+    optimizer = 'SGD'
+    batch_size = 256
+    epochs = 100
+    #exp1(optimizer_kwargs, optimizer_name=optimizer, epochs=epochs, batch_size=batch_size)
