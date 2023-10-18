@@ -355,7 +355,6 @@ def cnn_grid_search(param_grid, filepath='./out/grid_search/cnn', verbose=False)
 if __name__ == '__main__':
 
     ### Grid Search ###
-
     ## CNN ##
     param_grid = {
         'conv1_out': [16, 32],
@@ -381,19 +380,9 @@ if __name__ == '__main__':
     batch_size = 256
     epochs = 100
     #exp1(optimizer_kwargs, optimizer_name=optimizer, epochs=epochs, batch_size=batch_size)
-    param_grid = {
-        'conv1_out': [16],
-        'conv2_out': [32],
-        'stride': [1],
-        'kernel_size': [3],
-        'padding': [1],
-        'optimizer': ['Adam'],
-        'lr': [0.001],
-        'batch_size': [16],
-        'epochs': [1]
-    }
 
-    # exp6_grid_search(param_grid, verbose=True)
+    ## Experiment 2 ##
+    # TODO: define params for exp2
     exp2(optimizer_kwargs,'SGD', verbose=True)
 
     ## Experiment 6 ##
