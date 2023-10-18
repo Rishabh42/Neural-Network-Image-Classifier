@@ -31,7 +31,7 @@ def plot_training_history(history, figsize=(12, 4), axes=None, title='',
     ax2.legend()
 
     if filename:
-        plt.savefig(filename)
+        plt.savefig(filename, dpi=400)
     if show:
         plt.show()
 
@@ -48,7 +48,7 @@ def compare_training_histories(histories, titles, filename=None, show=True):
     plt.tight_layout()
 
     if filename:
-        plt.savefig(filename)
+        plt.savefig(filename, dpi=400)
     if show:
         plt.show()
 
@@ -73,6 +73,6 @@ def compare_accuracies(histories, labels, figsize=(8, 4), plot_train=True,
     plt.tight_layout()
 
     if filename:
-        plt.savefig(filename)
+        plt.savefig(filename, dpi=400)
     if show:
         plt.show()
