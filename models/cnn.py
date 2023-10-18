@@ -47,7 +47,7 @@ class CNN(nn.Module):
             for _, (data, target) in enumerate(train_loader):
                 self.optimizer.zero_grad()
                 output = self(data)
-                loss = self.criterion(output, target)
+                loss = self.criterion(output, target.type(torch.LongTensor))
                 loss.backward()
                 self.optimizer.step()
 
@@ -81,7 +81,7 @@ class CNN(nn.Module):
         with torch.no_grad():
             for data, target in test_loader:
                 output = self(data)
-                test_loss += self.criterion(output, target).item()
+                test_loss += self.criterion(output, target.type(torch.LongTensor)).item()
                 pred = output.argmax(dim=1, keepdim=True)
                 correct += pred.eq(target.view_as(pred)).sum().item()
                 total += target.size(0)
