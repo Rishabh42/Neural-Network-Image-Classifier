@@ -33,8 +33,8 @@ def load_and_preprocess_data(data_dirname, dataset_name, normalize=True, mlp=Tru
         X_test = torch.transpose(X_test, 1, 3)
 
     if normalize:
-        X_train = (X_train - torch.mean(X_train, dim=0, keepdim=True)) / torch.std(X_train, dim=0, keepdim=True)
-        X_test = (X_test - torch.mean(X_train, dim=0, keepdim=True)) / torch.std(X_train, dim=0, keepdim=True)
+        X_train = 2 * (X_train / 255.) - 1
+        X_test = 2 * (X_test / 255.) / - 1
 
     if mlp:
         X_train = np.array(X_train).reshape(X_train.shape[0], -1)
