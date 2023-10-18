@@ -1,218 +1,174 @@
-import json
-import numpy as np
-from utils.data_acquisition import load_fashion_mnist
-from models.mlp import MLP
-from utils.activations import ReLU, Softmax, Logistic, Tanh
-from utils.loss_functions import CrossEntropyLoss
-from models.optimizers import StochasticGradientDescent, evaluate_acc
 import matplotlib.pyplot as plt
+import numpy as np
+import pickle
+import torch
+from itertools import product
+import pandas as pd
 
-F_MNIST_DATA_DIR = './data/F_MNIST_data'
-STL_10_DATA_DIR = './data/STL_10_data'
+from utils.weight_initializers import all_zeros, uniform, gaussian, xavier_uniform, kaiming
+from utils.activations import ReLU, Softmax
+from utils.loss_functions import CrossEntropyLoss
+from utils.optimizers import SGD, Adam
+from models.mlp import MLP
+from models.cnn import CNN
+from utils.data_acquisition import load_and_preprocess_data
+from utils.plotting import compare_training_histories, plot_training_history, compare_accuracies
 
-SEED = 0
-np.random.seed(SEED)
+def exp1(optimizer_kwargs, optimizer_name, filepath='./out/exp1/', 
+         epochs=100, batch_size=256, verbose=True):
+    
+    X_train, X_test, y_train_oh, y_test_oh = load_and_preprocess_data('./data/F_MNIST_data', dataset_name='F_MNIST')
+    
+    initializers = {'Zeros': all_zeros, 'Uniform': uniform, 'Gaussian': gaussian, 'Xavier': xavier_uniform, 'Kaiming': kaiming}
+    histories = []
+    final_accuracies = [] 
 
+    for name, init in initializers.items():
+        print(f"Training with {name} initialization...")
+        model = MLP(layer_sizes = [X_train.shape[1], 128, y_train_oh.shape[1]], 
+                    act_fn=ReLU(), 
+                    loss_fn=CrossEntropyLoss(), 
+                    softmax_fn=Softmax(), 
+                    weight_initializer=init)
+        
+        if optimizer_name == 'SGD':
+            optimizer = SGD(**optimizer_kwargs)
+        elif optimizer_name == 'Adam':
+            optimizer = Adam(**optimizer_kwargs)
 
-def experiment_1(X_train, y_train, X_test, y_test, plot_fname='./out/exp1/test.png', test_acc_fname='./out/exp1/test.txt'):
+        history = model.fit(X_train, y_train_oh, optimizer, X_test=X_test, y_test=y_test_oh, epochs=epochs, batch_size=batch_size, verbose=verbose)
+        
+        histories.append(history)
+        
+        # calc final train/test accuracies
+        final_train_acc = np.mean(np.argmax(model.forward(X_train)[-1], axis=1) == np.argmax(y_train_oh, axis=1))
+        final_test_acc = np.mean(np.argmax(model.forward(X_test)[-1], axis=1) == np.argmax(y_test_oh, axis=1))
+        final_accuracies.append((name, final_train_acc, final_test_acc))
 
-    from utils.weight_initializers import all_zeros, uniform, gaussian, xavier, kaiming
-    initializers = {'Zeros': all_zeros, 'Uniform': uniform, 'Gaussian': gaussian, 'Xavier': xavier, 'Kaiming': kaiming}
-    test_accuracies = {}
+        print(f"Completed training with {name} initialization. Final Train Accuracy: {final_train_acc:.4f}, Final Test Accuracy: {final_test_acc:.4f}\n")
 
-    layer_sizes = [X_train.shape[1], y_train.shape[1]]
-    activations = [Softmax()]
-    optimizer_kwargs = {'batch_size': 256, 'n_epochs': 100, 'verbose': True, 'record_loss': True}
+    # save final accuracies
+    with open(f'{filepath}/final_accuracies.pickle', 'wb') as f:
+        pickle.dump(final_accuracies, f)
 
-    plt.figure(figsize=(8.25, 3))
+    # save histories
+    with open(f'{filepath}/histories.pickle', 'wb') as f:
+        pickle.dump(histories, f)
 
-    for initalizer_name, initializer in initializers.items():
+    # save plots
+    compare_training_histories(histories, titles=list(initializers.keys()), 
+                               filename=f'{filepath}/training_histories.png', show=False)
+    
+    compare_accuracies(histories, labels=list(initializers.keys()), plot_train=False,
+                       filename=f'{filepath}/accuracies.png', show=False)
 
-        mlp = MLP(layer_sizes, activations, weight_initializer=initializer)
-        optimizer = StochasticGradientDescent(**optimizer_kwargs)
-        mlp.fit(X_train, y_train, optimizer=optimizer, loss_fn=CrossEntropyLoss())
+    return histories, final_accuracies
 
-        # Plot training loss
-        t = [_ for _ in range(optimizer.loss_history.shape[0])]
-        plt.plot(t, optimizer.loss_history, alpha=0.7, linewidth=0.8, label=initalizer_name)
+def exp6(optimizer_kwargs, filepath='./out/exp6', stride=1, kernel=3, 
+         padding=1, epochs=100, batch_size=16, verbose=True):
+    """Implement CNN with Pytorch"""
 
-        # Get test accuracy
-        test_accuracies[initalizer_name] = evaluate_acc(y_test, mlp.predict(X_test))
+    trainset, testset = load_and_preprocess_data('./data/F_MNIST_data', dataset_name='F_MNIST', normalize=True, mlp=False)
+    trainloader = torch.utils.data.DataLoader(trainset, batch_size=batch_size, shuffle=True)
+    testloader = torch.utils.data.DataLoader(testset, batch_size=batch_size, shuffle=False)
 
-    print(test_accuracies)
-    with open(test_acc_fname, 'w') as test_acc_file:
-        test_acc_file.write(json.dumps(test_accuracies))
-    plt.legend()
-    plt.xlabel('Timestep')
-    plt.ylabel('Training Loss')
-    plt.tight_layout()
-    plt.savefig(plot_fname, dpi=400)
-
-
-def experiment_2(X_train, y_train, X_test, y_test, plot_fname='./out/exp2/test.png', test_acc_fname='./out/exp2/test.txt'):
-    from utils.weight_initializers import kaiming
-
-    layer_sizes_list = [[X_train.shape[1], y_train.shape[1]],
-                        [X_train.shape[1], 128, y_train.shape[1]],
-                        [X_train.shape[1], 128, 128, y_train.shape[1]]]
-
-    activations_list = [[Softmax()],
-                        [ReLU(), Softmax()],
-                        [ReLU(), ReLU(), Softmax()]]
-
-    models = [MLP(layer_sizes_list[i], activations_list[i], kaiming) for i in range(len(layer_sizes_list))]
-
-    optimizer_kwargs = {'batch_size': 256, 'n_epochs': 10, 'verbose': True, 'record_loss': True}
-    optimizer = StochasticGradientDescent(**optimizer_kwargs)
-    test_accuracies = {}
-
-    plt.figure(figsize=(8.25, 3))
-    for i, mlp in enumerate(models):
-
-        mlp.fit(X_train, y_train, optimizer=optimizer, loss_fn=CrossEntropyLoss())
-
-        # Plot training loss
-        label = r'$n_{h}=' + str(i) + r'$'
-        t = [_ for _ in range(optimizer.loss_history.shape[0])]
-        plt.plot(t, optimizer.loss_history, alpha=0.7, linewidth=0.8, label=label)
-
-        # Get test accuracy
-        test_accuracies[i] = evaluate_acc(y_test, mlp.predict(X_test))
-
-    print(test_accuracies)
-    with open(test_acc_fname, 'w') as test_acc_file:
-        test_acc_file.write(json.dumps(test_accuracies))
-
-    plt.legend()
-    plt.xlabel('Timestep')
-    plt.ylabel('Training Loss')
-    plt.tight_layout()
-    plt.savefig(plot_fname, dpi=400)
+    histories = []
+    final_accuracies = []
 
 
-def experiment_3(X_train, y_train, X_test, y_test, plot_fname='./out/exp3/test.png', test_acc_fname='./out/exp3/test.txt'):
-    from utils.weight_initializers import xavier, kaiming
+def exp6_grid_search(param_grid, filepath='./out/exp6/grid_search', verbose=False):
 
-    # six experiments: 2 initializers, three activations.
-    layer_sizes = [X_train.shape[1], 128, 128, y_train.shape[1]]
+    trainset, testset = load_and_preprocess_data('./data/F_MNIST_data', dataset_name='F_MNIST', normalize=True, mlp=False)
 
-    optimizer_kwargs = {'batch_size': 256, 'n_epochs': 10, 'verbose': True, 'record_loss': True}
-    optimizer = StochasticGradientDescent(**optimizer_kwargs)
+    histories = []
+    final_accuracies = []
+    all_results = []
 
-    test_accuracies = {}
-    tests = {'Relu, Xa': {'activations': [ReLU(), ReLU(), Softmax()], 'weight_initializer': xavier},
-             'Relu, Ka': {'activations': [ReLU(), ReLU(), Softmax()], 'weight_initializer': kaiming},
-             'Logistic, Xa': {'activations': [Logistic(), Logistic(), Softmax()], 'weight_initializer': xavier},
-             'Logistic, Ka': {'activations': [Logistic(), Logistic(), Softmax()], 'weight_initializer': kaiming},
-             'Tanh, Xa': {'activations': [Tanh(), Logistic(), Softmax()], 'weight_initializer': xavier},
-             'Tanh, Ka': {'activations': [Tanh(), Logistic(), Softmax()], 'weight_initializer': kaiming}}
+    param_combinations = product(*param_grid.values())
+    param_names = list(param_grid.keys())
 
-    plt.figure(figsize=(8.25, 3))
-    for test_name, test_params in tests.items():
-        mlp = MLP(layer_sizes, **test_params)
-        mlp.fit(X_train, y_train, optimizer=optimizer, loss_fn=CrossEntropyLoss())
+    # grid search
+    for params in param_combinations:
+        conv1_out, conv2_out, stride, kernel_size, padding, optimizer_name, lr, batch_size, epochs = params
+        if optimizer_name == 'SGD':
+            optimizer_kwargs = {'lr': lr, 'momentum': 0.9}
+        elif optimizer_name == 'Adam':
+            optimizer_kwargs = {'lr': lr}
+        trainloader = torch.utils.data.DataLoader(trainset, batch_size=batch_size, shuffle=True)
+        testloader = torch.utils.data.DataLoader(testset, batch_size=batch_size, shuffle=False)
 
-        # Plot training loss
-        t = [_ for _ in range(optimizer.loss_history.shape[0])]
-        plt.plot(t, optimizer.loss_history, alpha=0.7, linewidth=0.8, label=test_name)
+        # init model
+        model = CNN(input_channels=1, image_size=28, conv1_out=conv1_out, conv2_out=conv2_out, stride=stride, 
+                    kernel_size=kernel_size, padding=padding, optimizer=optimizer_name, **optimizer_kwargs)
 
-        # Get test accuracy
-        test_accuracies[test_name] = evaluate_acc(y_test, mlp.predict(X_test))
+        # train
+        history = model.fit(trainloader, testloader, epochs=epochs, verbose=True)
+        histories.append(history)
 
-    print(test_accuracies)
-    with open(test_acc_fname, 'w') as test_acc_file:
-        test_acc_file.write(json.dumps(test_accuracies))
+        # eval
+        _, final_accuracy = model.evaluate(testloader)
+        final_accuracies.append(final_accuracy)
 
-    plt.legend()
-    plt.xlabel('Timestep')
-    plt.ylabel('Training Loss')
-    plt.tight_layout()
-    plt.savefig(plot_fname, dpi=400)
+        current_run_data = dict(zip(param_names, params))  
+        current_run_data['final_accuracy'] = final_accuracy
+        all_results.append(current_run_data)
 
+        # Optionally print out the results for each combination of parameters
+        if verbose:
+            params_dict = dict(zip(param_names, params))
+            params_str = ', '.join(f'{key}={value}' for key, value in params_dict.items())
+            print(f"Completed training with params: {params_str}. Final Test Accuracy: {final_accuracy:.4f}\n")
 
-def experiment_4(X_train, y_train, X_test, y_test, plot_fname='./out/exp4/test.png', test_acc_fname='./out/exp4/test.txt'):
-    from utils.weight_initializers import kaiming
-
-    # six experiments: 2 initializers, three activations.
-    layer_sizes = [X_train.shape[1], 128, 128, y_train.shape[1]]
-    activations = [ReLU(), ReLU(), Softmax()]
-    mlp = MLP(layer_sizes, activations, weight_initializer=kaiming)
-
-    optimizer_kwargs = {'batch_size': 256, 'n_epochs': 50, 'verbose': True, 'record_loss': True}
-
-    test_accuracies = {}
-    lambds_1 = [0.1, 0.01, 0.001]   # param for l1 regression
-    lambds_2 = [0.1, 0.01, 0.001]   # param for l2 regression
-    tests = {'None': [{'regularization': None}],
-             'L1': [{'regularization': 'l1', 'lambd': lambd} for lambd in lambds_1],
-             'L2': [{'regularization': 'l2', 'lambd': lambd} for lambd in lambds_2]}
-
-    plt.figure(figsize=(8.25, 3))
-    for regularization_type, test in tests.items():
-        if regularization_type == 'None':
-            optimizer = StochasticGradientDescent(**optimizer_kwargs)
-            mlp.fit(X_train, y_train, optimizer=optimizer, loss_fn=CrossEntropyLoss())
-
-            # Plot training loss
-            t = [_ for _ in range(optimizer.loss_history.shape[0])]
-            plt.plot(t, optimizer.loss_history, alpha=0.7, linewidth=0.8, label=regularization_type)
-
-            # Get test accuracy
-            test_accuracies[regularization_type] = evaluate_acc(y_test, mlp.predict(X_test))
-
-        else:
-            for reg_params in test:
-                optimizer_kwargs = {'batch_size': 256, 'n_epochs': 50, 'verbose': True, 'record_loss': True}
-                optimizer = StochasticGradientDescent(**optimizer_kwargs, **reg_params)
-                mlp.fit(X_train, y_train, optimizer=optimizer, loss_fn=CrossEntropyLoss())
-
-                # Plot training loss
-                label = regularization_type + r', $\lambda=' + str(reg_params['lambd']) + r'$'
-                t = [_ for _ in range(optimizer.loss_history.shape[0])]
-                plt.plot(t, optimizer.loss_history, alpha=0.7, linewidth=0.8, label=label)
-
-                # Get test accuracy
-                test_accuracies[label] = evaluate_acc(y_test, mlp.predict(X_test))
-
-    print(test_accuracies)
-    with open(test_acc_fname, 'w') as test_acc_file:
-        test_acc_file.write(json.dumps(test_accuracies))
-    plt.legend()
-    plt.xlabel('Timestep')
-    plt.ylabel('Training Loss')
-    plt.tight_layout()
-    plt.savefig(plot_fname, dpi=400)
+    # save results
+    with open(f'{filepath}/histories.pickle', 'wb') as f:
+        pickle.dump(histories, f)
+    with open(f'{filepath}/final_accuracies.pickle', 'wb') as f:
+        pickle.dump(final_accuracies, f)
+    results_df = pd.DataFrame(all_results)
+    results_df.to_csv(f'{filepath}/grid_search_results.csv', index=False)
+            
+    return histories, final_accuracies
 
 
-if __name__=='__main__':
+if __name__ == '__main__':
 
-    f_mnist_trainset, f_mnist_testset = load_fashion_mnist(F_MNIST_DATA_DIR)
-    #stl10_trainset, stl10_testset = load_fashion_mnist(STL_10_DATA_DIR)
-    X_train = f_mnist_trainset.data.numpy().reshape(-1, 28*28)
-    y_train = f_mnist_trainset.targets.numpy().reshape(-1, 1)
+    optimizer_kwargs = {
+        'lr': 0.01, 
+        'decay': 1e-6, 
+        'momentum': 0.9,
+        'regularization': 'l2',
+        'lambd': 0.001
+        }
+    optimizer = 'SGD'
+    batch_size = 256
+    epochs = 100
 
-    X_test = f_mnist_testset.data.numpy().reshape(-1, 28*28)
-    y_test = f_mnist_testset.targets.numpy().reshape(-1, 1)
+    #exp1(optimizer_kwargs, optimizer_name=optimizer, epochs=epochs, batch_size=batch_size)
 
 
-    X_train  = X_train / 255 # scale the image data
-    X_test  = X_test / 255
+    param_grid = {
+        'conv1_out': [16, 32],
+        'conv2_out': [32, 64],
+        'stride': [1],
+        'kernel_size': [3, 5],
+        'padding': [1, 2],
+        'optimizer': ['SGD'],
+        'lr': [0.001, 0.01],
+        'batch_size': [16, 32, 64],
+        'epochs': [5]
+    }
 
-    n_train_samples = 3000  # remove for real experiments
-    n_test_samples = 500    # remove for real experiments
+    # param_grid = {
+    #     'conv1_out': [16],
+    #     'conv2_out': [32],
+    #     'stride': [1],
+    #     'kernel_size': [3],
+    #     'padding': [1],
+    #     'optimizer': ['Adam'],
+    #     'lr': [0.001],
+    #     'batch_size': [16],
+    #     'epochs': [1]
+    # }
 
-    X_train = X_train[:n_train_samples]
-    y_train = y_train[:n_train_samples]
-    X_test = X_test[:n_test_samples]
-    y_test = y_test[:n_test_samples]
+    exp6_grid_search(param_grid, verbose=True)
 
-    # create one hot encoding
-    n_classes = y_train.max() + 1
-    y_oh = np.eye(n_classes)[y_train].reshape(y_train.shape[0], -1)
-    y_train = y_oh
-
-    n_classes = y_test.max() + 1
-    y_oh = np.eye(n_classes)[y_test].reshape(y_test.shape[0], -1)
-    y_test = y_oh
-
-    experiment_1(X_train, y_train, X_test, y_test)
