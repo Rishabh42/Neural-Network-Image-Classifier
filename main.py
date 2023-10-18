@@ -18,7 +18,7 @@ from utils.plotting import compare_training_histories, plot_training_history, co
 def exp1(optimizer_kwargs, optimizer_name, filepath='./out/exp1/', 
          epochs=100, batch_size=256, verbose=True):
     
-    X_train, X_test, y_train_oh, y_test_oh = load_and_preprocess_data('./data/CIFAR10_data', dataset_name='CIFAR10')
+    X_train, X_test, y_train_oh, y_test_oh = load_and_preprocess_data('./data/F_MNIST_data', dataset_name='F_MNIST')
     
     initializers = {'Zeros': all_zeros, 'Uniform': uniform, 'Gaussian': gaussian, 'Xavier': xavier_uniform, 'Kaiming': kaiming}
     histories = []
