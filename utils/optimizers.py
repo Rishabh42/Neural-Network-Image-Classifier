@@ -4,8 +4,8 @@ class SGD:
     def __init__(self, lr=0.01, decay=0, momentum=0, regularization=None, lambd=0):
         self.lr = lr
         self.decay = decay  # 0 for no decay
+        self.iterations = 0
         self.momentum = momentum 
-        self.iterations = 0 
         self.s_w = None
         self.s_b = None 
 
@@ -48,23 +48,17 @@ class SGD:
     
 
 class Adam:
-    def __init__(self, lr=0.001, beta_1=0.9, beta_2=0.999, epsilon=1e-8, decay=0., weight_decay=0.01):
+    def __init__(self, lr=0.001, beta_1=0.9, beta_2=0.999, epsilon=1e-8):
         self.lr = lr
         self.beta_1 = beta_1
         self.beta_2 = beta_2
         self.epsilon = epsilon
-        self.decay = decay 
-        self.weight_decay = weight_decay 
-        self.iterations = 0
         self.m_w = None  # first moment vector
         self.s_w = None  # second moment vector
         self.m_b = None
         self.s_b = None
 
     def update(self, weights, biases, grads):
-        self.iterations += 1
-        lr_t = self.lr * (1. / (1. + self.decay * self.iterations))
-
         # update weights according to the equation in slide 30 of:
         # https://www.cs.mcgill.ca/~isabeau/COMP551/F23/slides/5-gradientdescent.pdf
 
@@ -93,7 +87,7 @@ class Adam:
             s_b_hat = self.s_b[i] / (1. - self.beta_2 ** self.iterations)
 
             # update params
-            weights[i] -= lr_t * m_w_hat / (np.sqrt(s_w_hat) + self.epsilon) + (self.weight_decay * weights[i])
-            biases[i] -= lr_t * m_b_hat / (np.sqrt(s_b_hat) + self.epsilon)
+            weights[i] -= self.lr * m_w_hat / (np.sqrt(s_w_hat) + self.epsilon)
+            biases[i] -= self.lr * m_b_hat / (np.sqrt(s_b_hat) + self.epsilon)
 
         return weights, biases
