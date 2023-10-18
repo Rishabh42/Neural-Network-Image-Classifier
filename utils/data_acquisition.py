@@ -1,7 +1,7 @@
 from torchvision import datasets, transforms
 from sklearn.preprocessing import OneHotEncoder
 
-def load_and_preprocess_data(data_dirname, dataset_name, normalize=True):
+def load_and_preprocess_data(data_dirname, dataset_name, normalize=True, mlp=True):
     # define a transform to normalize the data
     if normalize:
         transform = transforms.Compose([
@@ -19,11 +19,14 @@ def load_and_preprocess_data(data_dirname, dataset_name, normalize=True):
         testset = datasets.CIFAR10(data_dirname, download=True, train=False, transform=transform)
 
     # flatten and scale 
-    X_train = trainset.data.numpy().reshape(-1, 28*28) / 255.0
-    y_train = trainset.targets.numpy()
-    X_test = testset.data.numpy().reshape(-1, 28*28) / 255.0
-    y_test = testset.targets.numpy()
-
+    if mlp:
+        X_train = trainset.data.numpy().reshape(-1, 28*28) / 255.0
+        y_train = trainset.targets.numpy()
+        X_test = testset.data.numpy().reshape(-1, 28*28) / 255.0
+        y_test = testset.targets.numpy()
+    else:
+        return trainset, testset
+    
     # one-hot encode
     encoder = OneHotEncoder(sparse_output=False, categories='auto')
     y_train_oh = encoder.fit_transform(y_train.reshape(-1, 1))
