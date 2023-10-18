@@ -38,7 +38,7 @@ def load_and_preprocess_data(data_dirname, dataset_name, normalize=True, mlp=Tru
 
     if mlp:
         X_train = np.array(X_train).reshape(X_train.shape[0], -1)
-        X_test = np.array(X_train).reshape(X_test.shape[0], -1)
+        X_test = np.array(X_test).reshape(X_test.shape[0], -1)
 
         # one-hot encode
         encoder = OneHotEncoder(sparse_output=False, categories='auto')
