@@ -113,8 +113,11 @@ def exp2(optimizer_kwargs, optimizer_name,filepath='./out/exp2/', epochs=100, ba
 
         print(f"{architecture['name']} Model - Final Test Accuracy: {final_test_acc:.4f}\n")
 
+        #TODO:save history
+        #TODO: create plots (later)
+
     # Save final accuracies
-    with open(f'{filepath}/final_accuracies_exp2.pickle', 'wb') as f:
+    with open(f'{filepath}/final_accuracies.pickle', 'wb') as f:
         pickle.dump(final_accuracies, f)
 
     # Save training histories and create plots for comparison
