@@ -1,5 +1,5 @@
 import numpy as np
-
+from utils.accuracy import evaluate_acc
 class MLP:
     def __init__(self, layer_sizes, act_fn, loss_fn, softmax_fn, weight_initializer):
         self.layer_sizes = layer_sizes
@@ -83,7 +83,7 @@ class MLP:
     def calculate_metrics(self, X, y):
         a = self.forward(X)
         loss = self.loss_fn.loss(y, a[-1]) / X.shape[0]
-        acc = np.mean(np.argmax(a[-1], axis=1) == np.argmax(y, axis=1))
+        acc = evaluate_acc(y, a[-1])
         return loss, acc
 
     def predict(self, X):

@@ -14,6 +14,7 @@ from models.cnn import CNN
 from utils.data_acquisition import load_and_preprocess_data
 from utils.plotting import compare_training_histories, plot_training_history, compare_accuracies
 
+
 def exp1(optimizer_kwargs, optimizer_name, filepath='./out/exp1/', 
          epochs=100, batch_size=256, verbose=True):
     
@@ -61,6 +62,68 @@ def exp1(optimizer_kwargs, optimizer_name, filepath='./out/exp1/',
     
     compare_accuracies(histories, labels=list(initializers.keys()), plot_train=False,
                        filename=f'{filepath}/accuracies.png', show=False)
+
+    return histories, final_accuracies
+
+
+def exp2(optimizer_kwargs, optimizer_name,filepath='./out/exp2/', epochs=100, batch_size=256, verbose=True):
+    X_train, X_test, y_train_oh, y_test_oh = load_and_preprocess_data('./data/F_MNIST_data', dataset_name='F_MNIST')
+
+    model_architectures = [
+        {
+            'name': 'No Hidden Layers',
+            'layer_sizes': [X_train.shape[1], y_train_oh.shape[1]],
+        },
+        {
+            'name': 'Single Hidden Layer',
+            'layer_sizes': [X_train.shape[1], 128, y_train_oh.shape[1]],
+        },
+        {
+            'name': 'Two Hidden Layers',
+            'layer_sizes': [X_train.shape[1], 128, 128, y_train_oh.shape[1]],
+        },
+    ]
+
+    histories = []
+    final_accuracies = []
+
+    for architecture in model_architectures:
+        print(f"Training {architecture['name']} model...")
+        model = MLP(
+            layer_sizes=architecture['layer_sizes'],
+            act_fn=ReLU(),
+            loss_fn=CrossEntropyLoss(),
+            softmax_fn=Softmax(),
+            weight_initializer=kaiming,
+        )
+
+        if optimizer_name == 'SGD':
+            optimizer = SGD(**optimizer_kwargs)
+        elif optimizer_name == 'Adam':
+            optimizer = Adam(**optimizer_kwargs)
+
+        history = model.fit(
+            X_train, y_train_oh, optimizer, X_test=X_test, y_test=y_test_oh,
+            epochs=epochs, batch_size=batch_size, verbose=verbose
+        )
+
+        histories.append(history)
+
+        # Calculate and record the final test accuracy
+        final_test_acc = np.mean(np.argmax(model.forward(X_test)[-1], axis=1) == np.argmax(y_test_oh, axis=1))
+        final_accuracies.append((architecture['name'], final_test_acc))
+
+        print(f"{architecture['name']} Model - Final Test Accuracy: {final_test_acc:.4f}\n")
+
+        #TODO:save history
+        #TODO: create plots (later)
+
+    # Save final accuracies
+    with open(f'{filepath}/final_accuracies.pickle', 'wb') as f:
+        pickle.dump(final_accuracies, f)
+
+    # Save training histories and create plots for comparison
+    # Implement the functions to save and compare results or use libraries like Matplotlib.
 
     return histories, final_accuracies
 
@@ -235,7 +298,9 @@ def exp8(optimizer_kwargs, filepath='./out/exp8', conv1_out=32, conv2_out=64, st
 
 def cnn_grid_search(param_grid, filepath='./out/grid_search/cnn', verbose=False):
 
-    trainset, testset = load_and_preprocess_data('./data/F_MNIST_data', dataset_name='F_MNIST', normalize=True, mlp=False)
+    X_train, X_test, y_train, y_test = load_and_preprocess_data('./data/F_MNIST_data', dataset_name='F_MNIST', normalize=True, mlp=False)
+    trainset = torch.utils.data.TensorDataset(X_train, y_train)
+    testset = torch.utils.data.TensorDataset(X_test, y_test)
 
     histories = []
     final_accuracies = []
@@ -255,7 +320,7 @@ def cnn_grid_search(param_grid, filepath='./out/grid_search/cnn', verbose=False)
         testloader = torch.utils.data.DataLoader(testset, batch_size=batch_size, shuffle=False)
 
         # init model
-        model = CNN(input_channels=1, image_size=28, conv1_out=conv1_out, conv2_out=conv2_out, stride=stride, 
+        model = CNN(input_channels=X_train.shape[1], image_size=X_train.shape[2], conv1_out=conv1_out, conv2_out=conv2_out, stride=stride,
                     kernel_size=kernel_size, padding=padding, optimizer=optimizer_name, **optimizer_kwargs)
 
         # train
@@ -316,6 +381,20 @@ if __name__ == '__main__':
     batch_size = 256
     epochs = 100
     #exp1(optimizer_kwargs, optimizer_name=optimizer, epochs=epochs, batch_size=batch_size)
+    param_grid = {
+        'conv1_out': [16],
+        'conv2_out': [32],
+        'stride': [1],
+        'kernel_size': [3],
+        'padding': [1],
+        'optimizer': ['Adam'],
+        'lr': [0.001],
+        'batch_size': [16],
+        'epochs': [1]
+    }
+
+    # exp6_grid_search(param_grid, verbose=True)
+    exp2(optimizer_kwargs,'SGD', verbose=True)
 
     ## Experiment 6 ##
     optimizer_kwargs = {
