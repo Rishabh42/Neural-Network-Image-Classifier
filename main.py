@@ -6,7 +6,7 @@ from itertools import product
 import pandas as pd
 
 from utils.weight_initializers import all_zeros, uniform, gaussian, xavier_uniform, kaiming
-from utils.activations import ReLU, Softmax
+from utils.activations import ReLU, Logistic, Softplus, Softmax
 from utils.loss_functions import CrossEntropyLoss
 from utils.optimizers import SGD, Adam
 from models.mlp import MLP
@@ -64,7 +64,7 @@ def exp1(optimizer_kwargs, optimizer_name, filepath='./out/exp1/',
 
     return histories, final_accuracies
 
-def exp2(optimizer_kwargs, optimizer_name,filepath='./out/exp2/', epochs=100, batch_size=256, verbose=True):
+def exp2(optimizer_kwargs, optimizer_name,filepath='./out/exp2/', epochs=40, batch_size=256, verbose=True):
     X_train, X_test, y_train_oh, y_test_oh = load_and_preprocess_data('./data/F_MNIST_data', dataset_name='F_MNIST')
 
     model_architectures = [
@@ -113,15 +113,72 @@ def exp2(optimizer_kwargs, optimizer_name,filepath='./out/exp2/', epochs=100, ba
 
         print(f"{architecture['name']} Model - Final Test Accuracy: {final_test_acc:.4f}\n")
 
-        #TODO:save history
         #TODO: create plots (later)
+
+    # save histories
+    with open(f'{filepath}/histories.pickle', 'wb') as f:
+        pickle.dump(histories, f)
 
     # Save final accuracies
     with open(f'{filepath}/final_accuracies.pickle', 'wb') as f:
         pickle.dump(final_accuracies, f)
 
-    # Save training histories and create plots for comparison
-    # Implement the functions to save and compare results or use libraries like Matplotlib.
+    # save plots
+    model_names = ['No Hidden Layers', 'Single Hidden Layer', 'Two Hidden Layers']
+
+    compare_training_histories(histories, titles=list(model_names), 
+                                filename=f'{filepath}/training_histories.png', show=False)
+    compare_accuracies(histories, labels=list(model_names), plot_train=False,
+                       filename=f'{filepath}/accuracies.png', show=False)
+
+    return histories, final_accuracies
+
+def exp3(optimizer_kwargs, optimizer_name,filepath='./out/exp3/', epochs=50, batch_size=256, verbose=True):
+    X_train, X_test, y_train_oh, y_test_oh = load_and_preprocess_data('./data/F_MNIST_data', dataset_name='F_MNIST')
+
+    # 
+    activations = [Logistic(), Softplus(), ReLU()]
+
+    histories = []
+    final_accuracies = []
+
+    for activation in activations:
+        activation_name = activation.__class__.__name__
+        print(f"Training model with {activation_name} activation...")
+
+        model = MLP(
+            layer_sizes=[X_train.shape[1], 128, 128, y_train_oh.shape[1]],
+            act_fn=activation,
+            loss_fn=CrossEntropyLoss(),
+            softmax_fn=Softmax(),
+            weight_initializer=kaiming,
+        )
+
+        if optimizer_name == 'SGD':
+            optimizer = SGD(**optimizer_kwargs)
+        elif optimizer_name == 'Adam':
+            optimizer = Adam(**optimizer_kwargs)
+
+        history = model.fit(
+            X_train, y_train_oh, optimizer, X_test=X_test, y_test=y_test_oh,
+            epochs=epochs, batch_size=batch_size, verbose=verbose
+        )
+
+        histories.append(history)
+
+        # Calculate and record the final test accuracy
+        final_test_acc = np.mean(np.argmax(model.forward(X_test)[-1], axis=1) == np.argmax(y_test_oh, axis=1))
+        final_accuracies.append((activation_name, final_test_acc))
+
+        print(f"{activation_name} Model - Final Test Accuracy: {final_test_acc:.4f}\n")
+
+    # save histories
+    with open(f'{filepath}/histories.pickle', 'wb') as f:
+        pickle.dump(histories, f)
+
+    # Save final accuracies
+    with open(f'{filepath}/final_accuracies_exp3.pickle', 'wb') as f:
+        pickle.dump(final_accuracies, f)
 
     return histories, final_accuracies
 
