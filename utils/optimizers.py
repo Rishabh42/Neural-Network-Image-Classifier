@@ -34,6 +34,7 @@ class SGD:
 
             for i in range(len(weights)):
                 # calculate velocity updates for momentum
+                # ref: https://towardsdatascience.com/stochastic-gradient-descent-with-momentum-a84097641a5d
                 if self.momentum > 0:
                     self.s_w[i] = self.momentum * self.s_w[i] - lr_t * (grads[f'W{i+1}'] + reg_term[i])
                     self.s_b[i] = self.momentum * self.s_b[i] - lr_t * grads[f'b{i+1}']  
