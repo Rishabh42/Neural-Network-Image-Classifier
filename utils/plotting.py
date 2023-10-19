@@ -15,8 +15,11 @@ def plot_training_history(history, num_saves_per_epoch, figsize=(12, 4), axes=No
     train_acc = history['train_acc']
     test_acc = history['test_acc']
 
+    test = len(train_loss)
+
     # calc the x-axis values in terms of epochs
-    x_axis_values = np.arange(len(train_loss)) / num_saves_per_epoch
+    num_epochs = len(train_loss) / num_saves_per_epoch
+    x_axis_values = np.linspace(0, num_epochs, len(train_loss))
 
     # plot train and test loss
     ax1.plot(x_axis_values, train_loss, label='Train')
@@ -25,6 +28,8 @@ def plot_training_history(history, num_saves_per_epoch, figsize=(12, 4), axes=No
     ax1.set_xlabel('Epoch')
     ax1.set_ylabel('Average Loss per Sample')
     ax1.set_title('Loss over Epochs' + ('' if title == '' else f' ({title})'))
+    #ax1.set_xticks(np.arange(1, num_epochs + 1))  # Set custom ticks on the x-axis
+
     ax1.legend()
 
     # plot train and test accuracy

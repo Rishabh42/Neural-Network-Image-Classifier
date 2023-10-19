@@ -140,7 +140,7 @@ def exp6(optimizer_kwargs, filepath='./out/exp6', conv1_out=32, conv2_out=64, st
     model = CNN(input_channels=1, image_size=28, conv1_out=conv1_out, conv2_out=conv2_out, stride=stride, 
                 kernel_size=kernel, padding=padding, optimizer='SGD', **optimizer_kwargs)
     
-    history = model.fit(trainloader, testloader, epochs=epochs, verbose=verbose, save_every_n_batches=200)
+    history = model.fit(trainloader, testloader, epochs=epochs, verbose=verbose, save_every_n_batches=180)
     _, final_accuracy = model.evaluate(testloader)
 
     # save results
@@ -150,7 +150,7 @@ def exp6(optimizer_kwargs, filepath='./out/exp6', conv1_out=32, conv2_out=64, st
         pickle.dump(final_accuracy, f)
 
     # save plots
-    num_saves_per_epoch = np.floor((len(trainloader) / batch_size) / 200)
+    num_saves_per_epoch = np.floor(len(trainloader) / 180)
     plot_training_history(history, num_saves_per_epoch=num_saves_per_epoch, 
                           filename=f'{filepath}/training_history.png', show=False)
 
@@ -218,7 +218,7 @@ def exp7(params_mlp, params_cnn, filepath='./out/exp7', verbose=True):
                 kernel_size=kernel_size, padding=padding, optimizer=optimizer_name, **optimizer_kwargs)
     
     # train
-    history = model.fit(trainloader, testloader, epochs=epochs, verbose=verbose, save_every_n_batches=50)
+    history = model.fit(trainloader, testloader, epochs=epochs, verbose=verbose, save_every_n_batches=150)
     histories.append(history)
 
     # eval
@@ -235,7 +235,7 @@ def exp7(params_mlp, params_cnn, filepath='./out/exp7', verbose=True):
         
     # save plots
     plot_training_history(histories[0], num_saves_per_epoch=1, filename=f'{filepath}/mlp_training_history.png', show=False)
-    num_saves_per_epoch = np.floor((len(trainloader) / batch_size) / 50)
+    num_saves_per_epoch = np.floor(len(trainloader) / 150)
     plot_training_history(histories[1], num_saves_per_epoch=num_saves_per_epoch, filename=f'{filepath}/cnn_training_history.png', show=False)
 
     return histories, final_accuracies
@@ -257,10 +257,9 @@ def exp8(optimizer_kwargs, filepath='./out/exp8', conv1_out=32, conv2_out=64, st
     for momentum in momentums:
         print(f"Training with momentum={momentum}...")
         optimizer_kwargs = {'lr': optimizer_kwargs['lr'], 'momentum': momentum}
-        model = CNN(input_channels=1, image_size=28, conv1_out=conv1_out, conv2_out=conv2_out, stride=stride, 
+        model = CNN(input_channels=3, image_size=32, conv1_out=conv1_out, conv2_out=conv2_out, stride=stride,
                     kernel_size=kernel, padding=padding, optimizer='SGD', **optimizer_kwargs)
-        
-        history = model.fit(trainloader, testloader, epochs=epochs, verbose=verbose, save_every_n_batches=200)
+        history = model.fit(trainloader, testloader, epochs=epochs, verbose=verbose, save_every_n_batches=150)
         histories.append(history)
 
         # eval
@@ -270,11 +269,11 @@ def exp8(optimizer_kwargs, filepath='./out/exp8', conv1_out=32, conv2_out=64, st
         print(f"Completed training with momentum={momentum}. Final Test Accuracy: {final_accuracy:.4f}\n")
 
     print(f"Training with Adam...")
-    optimizer_kwargs
-    model = CNN(input_channels=1, image_size=28, conv1_out=conv1_out, conv2_out=conv2_out, stride=stride,
+    optimizer_kwargs = {'lr': optimizer_kwargs['lr']}
+    model = CNN(input_channels=3, image_size=32, conv1_out=conv1_out, conv2_out=conv2_out, stride=stride,
                 kernel_size=kernel, padding=padding, optimizer='Adam', **optimizer_kwargs)
     
-    history = model.fit(trainloader, testloader, epochs=epochs, verbose=verbose, save_every_n_batches=200)
+    history = model.fit(trainloader, testloader, epochs=epochs, verbose=verbose, save_every_n_batches=150)
     histories.append(history)
 
     # eval
@@ -291,7 +290,7 @@ def exp8(optimizer_kwargs, filepath='./out/exp8', conv1_out=32, conv2_out=64, st
 
     # save plots
     titles = [f'SGD with $\beta$={momentum}' for momentum in momentums] + ['Adam']
-    num_saves_per_epoch = np.floor((len(trainloader) / batch_size) / 200)
+    num_saves_per_epoch = np.floor((len(trainloader) / batch_size) / 150)
     compare_training_histories(histories, titles=titles, filename=f'{filepath}/training_histories.png', 
                                num_saves_per_epoch=num_saves_per_epoch, show=False)
 
@@ -417,7 +416,7 @@ if __name__ == '__main__':
         'stride': 1,
         'kernel_size': 3,
         'padding': 2,
-        'epochs': 20,
+        'epochs': 5,
         'batch_size': 16,
         'lr': 0.01,
         'momentum': 0.9,
@@ -435,6 +434,6 @@ if __name__ == '__main__':
     kernel = 3
     padding = 2
     batch_size = 16
-    epochs = 20
+    epochs = 5
     exp8(optimizer_kwargs, conv1_out=conv1_out, conv2_out=conv2_out, stride=stride, kernel=kernel, padding=padding, epochs=epochs, batch_size=batch_size, verbose=True)
     
