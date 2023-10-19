@@ -14,6 +14,7 @@ from models.cnn import CNN
 from utils.data_acquisition import load_and_preprocess_data
 from utils.plotting import compare_training_histories, plot_training_history, compare_accuracies
 
+
 def exp1(optimizer_kwargs, optimizer_name, filepath='./out/exp1/', 
          epochs=100, batch_size=256, verbose=True):
     
@@ -63,6 +64,7 @@ def exp1(optimizer_kwargs, optimizer_name, filepath='./out/exp1/',
                        filename=f'{filepath}/accuracies.png', show=False)
 
     return histories, final_accuracies
+
 
 def exp2(optimizer_kwargs, optimizer_name,filepath='./out/exp2/', epochs=100, batch_size=256, verbose=True):
     X_train, X_test, y_train_oh, y_test_oh = load_and_preprocess_data('./data/F_MNIST_data', dataset_name='F_MNIST')
@@ -125,6 +127,7 @@ def exp2(optimizer_kwargs, optimizer_name,filepath='./out/exp2/', epochs=100, ba
 
     return histories, final_accuracies
 
+
 def exp6(optimizer_kwargs, filepath='./out/exp6', stride=1, kernel=3, 
          padding=1, epochs=100, batch_size=16, verbose=True):
     """Implement CNN with Pytorch"""
@@ -139,7 +142,9 @@ def exp6(optimizer_kwargs, filepath='./out/exp6', stride=1, kernel=3,
 
 def exp6_grid_search(param_grid, filepath='./out/exp6/grid_search', verbose=False):
 
-    trainset, testset = load_and_preprocess_data('./data/F_MNIST_data', dataset_name='F_MNIST', normalize=True, mlp=False)
+    X_train, X_test, y_train, y_test = load_and_preprocess_data('./data/F_MNIST_data', dataset_name='F_MNIST', normalize=True, mlp=False)
+    trainset = torch.utils.data.TensorDataset(X_train, y_train)
+    testset = torch.utils.data.TensorDataset(X_test, y_test)
 
     histories = []
     final_accuracies = []
@@ -159,7 +164,7 @@ def exp6_grid_search(param_grid, filepath='./out/exp6/grid_search', verbose=Fals
         testloader = torch.utils.data.DataLoader(testset, batch_size=batch_size, shuffle=False)
 
         # init model
-        model = CNN(input_channels=1, image_size=28, conv1_out=conv1_out, conv2_out=conv2_out, stride=stride, 
+        model = CNN(input_channels=X_train.shape[1], image_size=X_train.shape[2], conv1_out=conv1_out, conv2_out=conv2_out, stride=stride,
                     kernel_size=kernel_size, padding=padding, optimizer=optimizer_name, **optimizer_kwargs)
 
         # train
@@ -219,17 +224,17 @@ if __name__ == '__main__':
         'epochs': [5]
     }
 
-    # param_grid = {
-    #     'conv1_out': [16],
-    #     'conv2_out': [32],
-    #     'stride': [1],
-    #     'kernel_size': [3],
-    #     'padding': [1],
-    #     'optimizer': ['Adam'],
-    #     'lr': [0.001],
-    #     'batch_size': [16],
-    #     'epochs': [1]
-    # }
+    param_grid = {
+        'conv1_out': [16],
+        'conv2_out': [32],
+        'stride': [1],
+        'kernel_size': [3],
+        'padding': [1],
+        'optimizer': ['Adam'],
+        'lr': [0.001],
+        'batch_size': [16],
+        'epochs': [1]
+    }
 
     # exp6_grid_search(param_grid, verbose=True)
     exp2(optimizer_kwargs,'SGD', verbose=True)
