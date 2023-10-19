@@ -136,7 +136,7 @@ def exp2(optimizer_kwargs, optimizer_name,filepath='./out/exp2/', epochs=40, bat
 def exp3(optimizer_kwargs, optimizer_name,filepath='./out/exp3/', epochs=50, batch_size=256, verbose=True):
     X_train, X_test, y_train_oh, y_test_oh = load_and_preprocess_data('./data/F_MNIST_data', dataset_name='F_MNIST')
 
-    # 
+    # Comparing Logistic and Softplus activations with ReLU
     activations = [Logistic(), Softplus(), ReLU()]
 
     histories = []
@@ -179,6 +179,14 @@ def exp3(optimizer_kwargs, optimizer_name,filepath='./out/exp3/', epochs=50, bat
     # Save final accuracies
     with open(f'{filepath}/final_accuracies_exp3.pickle', 'wb') as f:
         pickle.dump(final_accuracies, f)
+
+    # save plots
+    activation_models = ["Logistic", "Softplus", "ReLU"]
+
+    compare_training_histories(histories, titles=list(activation_models), 
+                                filename=f'{filepath}/training_histories.png', show=False)
+    compare_accuracies(histories, labels=list(activation_models), plot_train=False,
+                       filename=f'{filepath}/accuracies.png', show=False)
 
     return histories, final_accuracies
 
@@ -289,5 +297,5 @@ if __name__ == '__main__':
     # }
 
     # exp6_grid_search(param_grid, verbose=True)
-    exp2(optimizer_kwargs,'SGD', verbose=True)
+    exp3(optimizer_kwargs,'SGD', verbose=True)
 
