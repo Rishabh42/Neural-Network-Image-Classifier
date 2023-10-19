@@ -4,6 +4,7 @@ import pickle
 import torch
 from itertools import product
 import pandas as pd
+from sklearn.model_selection import train_test_split
 
 from utils.weight_initializers import all_zeros, uniform, gaussian, xavier_uniform, kaiming
 from utils.activations import ReLU, Softmax
@@ -241,7 +242,7 @@ def exp7(params_mlp, params_cnn, filepath='./out/exp7', verbose=True):
     return histories, final_accuracies
 
 
-def exp8(optimizer_kwargs, filepath='./out/exp8', conv1_out=32, conv2_out=64, stride=1, 
+def exp8(lr_sgd, lr_adam, filepath='./out/exp8', conv1_out=32, conv2_out=64, stride=1, 
          kernel=3, padding=2, epochs=5, batch_size=16, verbose=True):
 
     X_train, X_test, y_train, y_test = load_and_preprocess_data('./data/cifar10_data', dataset_name='CIFAR10', normalize=True, mlp=False)
@@ -256,7 +257,7 @@ def exp8(optimizer_kwargs, filepath='./out/exp8', conv1_out=32, conv2_out=64, st
 
     for momentum in momentums:
         print(f"Training with momentum={momentum}...")
-        optimizer_kwargs = {'lr': optimizer_kwargs['lr'], 'momentum': momentum}
+        optimizer_kwargs = {'lr': lr_sgd, 'momentum': momentum}
         model = CNN(input_channels=3, image_size=32, conv1_out=conv1_out, conv2_out=conv2_out, stride=stride,
                     kernel_size=kernel, padding=padding, optimizer='SGD', **optimizer_kwargs)
         history = model.fit(trainloader, testloader, epochs=epochs, verbose=verbose, save_every_n_batches=150)
@@ -269,7 +270,7 @@ def exp8(optimizer_kwargs, filepath='./out/exp8', conv1_out=32, conv2_out=64, st
         print(f"Completed training with momentum={momentum}. Final Test Accuracy: {final_accuracy:.4f}\n")
 
     print(f"Training with Adam...")
-    optimizer_kwargs = {'lr': optimizer_kwargs['lr']}
+    optimizer_kwargs = {'lr': lr_adam}
     model = CNN(input_channels=3, image_size=32, conv1_out=conv1_out, conv2_out=conv2_out, stride=stride,
                 kernel_size=kernel, padding=padding, optimizer='Adam', **optimizer_kwargs)
     
@@ -289,8 +290,8 @@ def exp8(optimizer_kwargs, filepath='./out/exp8', conv1_out=32, conv2_out=64, st
         pickle.dump(final_accuracies, f)
 
     # save plots
-    titles = [f'SGD with $\beta$={momentum}' for momentum in momentums] + ['Adam']
-    num_saves_per_epoch = np.floor((len(trainloader) / batch_size) / 150)
+    titles = [f'SGD with $\\beta={momentum}$' for momentum in momentums] + ['Adam']
+    num_saves_per_epoch = np.floor(len(trainloader) / 150)
     compare_training_histories(histories, titles=titles, filename=f'{filepath}/training_histories.png', 
                                num_saves_per_epoch=num_saves_per_epoch, show=False)
 
@@ -300,11 +301,12 @@ def exp8(optimizer_kwargs, filepath='./out/exp8', conv1_out=32, conv2_out=64, st
 def cnn_grid_search(param_grid, filepath='./out/grid_search/cnn', verbose=False):
 
     X_train, X_test, y_train, y_test = load_and_preprocess_data('./data/F_MNIST_data', dataset_name='F_MNIST', normalize=True, mlp=False)
+    X_train, X_val, y_train, y_val = train_test_split(X_train, y_train, test_size=0.15, random_state=42, stratify=y_train)
     trainset = torch.utils.data.TensorDataset(X_train, y_train)
-    testset = torch.utils.data.TensorDataset(X_test, y_test)
+    valset = torch.utils.data.TensorDataset(X_val, y_val)
 
     histories = []
-    final_accuracies = []
+    val_accuracies = []
     all_results = []
 
     param_combinations = product(*param_grid.values())
@@ -318,7 +320,7 @@ def cnn_grid_search(param_grid, filepath='./out/grid_search/cnn', verbose=False)
         elif optimizer_name == 'Adam':
             optimizer_kwargs = {'lr': lr}
         trainloader = torch.utils.data.DataLoader(trainset, batch_size=batch_size, shuffle=True)
-        testloader = torch.utils.data.DataLoader(testset, batch_size=batch_size, shuffle=False)
+        valloader = torch.utils.data.DataLoader(valset, batch_size=batch_size, shuffle=False)
 
         # init model
         model = CNN(input_channels=X_train.shape[1], image_size=X_train.shape[2], conv1_out=conv1_out, conv2_out=conv2_out, stride=stride,
@@ -328,29 +330,29 @@ def cnn_grid_search(param_grid, filepath='./out/grid_search/cnn', verbose=False)
         history = model.fit(trainloader, epochs=epochs, verbose=True, save_every_n_batches=1000)
         histories.append(history)
 
-        # eval
-        _, final_accuracy = model.evaluate(testloader)
-        final_accuracies.append(final_accuracy)
+        # eval on validation set
+        _, val_accuracy = model.evaluate(valloader)
+        val_accuracies.append(val_accuracy)
 
         current_run_data = dict(zip(param_names, params))  
-        current_run_data['final_accuracy'] = final_accuracy
+        current_run_data['val_accuracy'] = val_accuracy
         all_results.append(current_run_data)
 
         # Optionally print out the results for each combination of parameters
         if verbose:
             params_dict = dict(zip(param_names, params))
             params_str = ', '.join(f'{key}={value}' for key, value in params_dict.items())
-            print(f"Completed training with params: {params_str}. Final Test Accuracy: {final_accuracy:.4f}\n")
+            print(f"Completed training with params: {params_str}. Validation Accuracy: {val_accuracy:.4f}\n")
 
     # save results
     with open(f'{filepath}/histories.pickle', 'wb') as f:
         pickle.dump(histories, f)
-    with open(f'{filepath}/final_accuracies.pickle', 'wb') as f:
-        pickle.dump(final_accuracies, f)
+    with open(f'{filepath}/val_accuracies.pickle', 'wb') as f:
+        pickle.dump(val_accuracies, f)
     results_df = pd.DataFrame(all_results)
     results_df.to_csv(f'{filepath}/grid_search_results.csv', index=False)
             
-    return histories, final_accuracies
+    return histories, val_accuracies
 
 
 if __name__ == '__main__':
@@ -363,10 +365,10 @@ if __name__ == '__main__':
         'stride': [1],
         'kernel_size': [3, 5],
         'padding': [1, 2],
-        'optimizer': ['SGD'],
+        'optimizer': ['SGD', 'Adam'],
         'lr': [0.001, 0.01],
         'batch_size': [16, 32, 64],
-        'epochs': [5]
+        'epochs': [3, 5]
     }
     #cnn_grid_search(param_grid, verbose=True)
 
@@ -422,12 +424,11 @@ if __name__ == '__main__':
         'momentum': 0.9,
         'optimizer': 'SGD'
     }
-    exp7(params_mlp, params_cnn, verbose=True)
+    #exp7(params_mlp, params_cnn, verbose=True)
 
     ## Experiment 8 ##
-    optimizer_kwargs = {
-        'lr': 0.01
-        }
+    lr_sgd = 0.01
+    lr_adam = 0.001
     conv1_out = 32
     conv2_out = 64
     stride = 1
@@ -435,5 +436,5 @@ if __name__ == '__main__':
     padding = 2
     batch_size = 16
     epochs = 5
-    exp8(optimizer_kwargs, conv1_out=conv1_out, conv2_out=conv2_out, stride=stride, kernel=kernel, padding=padding, epochs=epochs, batch_size=batch_size, verbose=True)
+    #exp8(lr_sgd=lr_sgd, lr_adam=lr_adam, conv1_out=conv1_out, conv2_out=conv2_out, stride=stride, kernel=kernel, padding=padding, epochs=epochs, batch_size=batch_size, verbose=True)
     
