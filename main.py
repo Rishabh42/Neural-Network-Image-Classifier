@@ -131,9 +131,11 @@ def exp2(optimizer_kwargs, optimizer_name,filepath='./out/exp2/', epochs=100, ba
 def exp6(optimizer_kwargs, filepath='./out/exp6', conv1_out=32, conv2_out=64, stride=1, 
          kernel=3, padding=2, epochs=5, batch_size=16, verbose=True):
     
-    trainset, testset = load_and_preprocess_data('./data/F_MNIST_data', dataset_name='F_MNIST', normalize=True, mlp=False)
-    trainloader = torch.utils.data.DataLoader(trainset, batch_size=batch_size, shuffle=True, num_workers=4)
-    testloader = torch.utils.data.DataLoader(testset, batch_size=batch_size, shuffle=False, num_workers=4)
+    X_train, X_test, y_train, y_test = load_and_preprocess_data('./data/F_MNIST_data', dataset_name='F_MNIST', normalize=True, mlp=False)
+    trainset = torch.utils.data.TensorDataset(X_train, y_train)
+    testset = torch.utils.data.TensorDataset(X_test, y_test)
+    trainloader = torch.utils.data.DataLoader(trainset, batch_size=batch_size, shuffle=True)
+    testloader = torch.utils.data.DataLoader(testset, batch_size=batch_size, shuffle=False)
 
     model = CNN(input_channels=1, image_size=28, conv1_out=conv1_out, conv2_out=conv2_out, stride=stride, 
                 kernel_size=kernel, padding=padding, optimizer='SGD', **optimizer_kwargs)
@@ -160,8 +162,7 @@ def exp7(params_mlp, params_cnn, filepath='./out/exp7', verbose=True):
     final_accuracies = []
 
     ## MLP
-    #X_train, X_test, y_train_oh, y_test_oh = load_and_preprocess_data('./data/cifar10_data', dataset_name='CIFAR10', normalize=True, mlp=True)
-    X_train, X_test, y_train_oh, y_test_oh = load_and_preprocess_data('./data/F_MNIST_data', dataset_name='F_MNIST', normalize=True, mlp=True)
+    X_train, X_test, y_train_oh, y_test_oh = load_and_preprocess_data('./data/cifar10_data', dataset_name='CIFAR10', normalize=True, mlp=True)
 
     # unpack params
     hidden_layer_size = params_mlp['hidden_layer_size']
@@ -193,9 +194,9 @@ def exp7(params_mlp, params_cnn, filepath='./out/exp7', verbose=True):
     print(f"Completed training MLP. Final Test Accuracy: {final_accuracy:.4f}\n")
 
     ## CNN
-    trainset, testset = load_and_preprocess_data('./data/cifar10_data', dataset_name='CIFAR10', normalize=True, mlp=False)
-    trainloader = torch.utils.data.DataLoader(trainset, batch_size=params_cnn['batch_size'], shuffle=True, num_workers=4)
-    testloader = torch.utils.data.DataLoader(testset, batch_size=params_cnn['batch_size'], shuffle=False, num_workers=4)
+    X_train, X_test, y_train, y_test = load_and_preprocess_data('./data/cifar10_data', dataset_name='CIFAR10', normalize=True, mlp=False)
+    trainset = torch.utils.data.TensorDataset(X_train, y_train)
+    testset = torch.utils.data.TensorDataset(X_test, y_test)
 
     # unpack params
     conv1_out = params_cnn['conv1_out']
@@ -209,12 +210,15 @@ def exp7(params_mlp, params_cnn, filepath='./out/exp7', verbose=True):
                         'momentum': params_cnn['momentum']}
     optimizer_name = params_cnn['optimizer']
 
+    trainloader = torch.utils.data.DataLoader(trainset, batch_size=batch_size, shuffle=True)
+    testloader = torch.utils.data.DataLoader(testset, batch_size=batch_size, shuffle=False)
+
     # init model
     model = CNN(input_channels=3, image_size=32, conv1_out=conv1_out, conv2_out=conv2_out, stride=stride,
                 kernel_size=kernel_size, padding=padding, optimizer=optimizer_name, **optimizer_kwargs)
     
     # train
-    history = model.fit(trainloader, testloader, epochs=epochs, verbose=verbose, save_every_n_batches=200)
+    history = model.fit(trainloader, testloader, epochs=epochs, verbose=verbose, save_every_n_batches=50)
     histories.append(history)
 
     # eval
@@ -228,14 +232,10 @@ def exp7(params_mlp, params_cnn, filepath='./out/exp7', verbose=True):
         pickle.dump(histories, f)
     with open(f'{filepath}/final_accuracies.pickle', 'wb') as f:
         pickle.dump(final_accuracies, f)
-
-    num_saves_per_epoch = np.floor((len(trainloader) / batch_size) / 200)
-    plot_training_history(history, num_saves_per_epoch=num_saves_per_epoch, 
-                          filename=f'{filepath}/training_history.png', show=False)
-
+        
     # save plots
     plot_training_history(histories[0], num_saves_per_epoch=1, filename=f'{filepath}/mlp_training_history.png', show=False)
-    num_saves_per_epoch = np.floor((len(trainloader) / batch_size) / 200)
+    num_saves_per_epoch = np.floor((len(trainloader) / batch_size) / 50)
     plot_training_history(histories[1], num_saves_per_epoch=num_saves_per_epoch, filename=f'{filepath}/cnn_training_history.png', show=False)
 
     return histories, final_accuracies
@@ -244,9 +244,11 @@ def exp7(params_mlp, params_cnn, filepath='./out/exp7', verbose=True):
 def exp8(optimizer_kwargs, filepath='./out/exp8', conv1_out=32, conv2_out=64, stride=1, 
          kernel=3, padding=2, epochs=5, batch_size=16, verbose=True):
 
-    trainset, testset = load_and_preprocess_data('./data/F_MNIST_data', dataset_name='F_MNIST', normalize=True, mlp=False)
-    trainloader = torch.utils.data.DataLoader(trainset, batch_size=batch_size, shuffle=True, num_workers=4)
-    testloader = torch.utils.data.DataLoader(testset, batch_size=batch_size, shuffle=False, num_workers=4)
+    X_train, X_test, y_train, y_test = load_and_preprocess_data('./data/cifar10_data', dataset_name='CIFAR10', normalize=True, mlp=False)
+    trainset = torch.utils.data.TensorDataset(X_train, y_train)
+    testset = torch.utils.data.TensorDataset(X_test, y_test)
+    trainloader = torch.utils.data.DataLoader(trainset, batch_size=batch_size, shuffle=True)
+    testloader = torch.utils.data.DataLoader(testset, batch_size=batch_size, shuffle=False)
 
     histories = []
     final_accuracies = []
@@ -383,7 +385,7 @@ if __name__ == '__main__':
 
     ## Experiment 2 ##
     # TODO: define params for exp2
-    exp2(optimizer_kwargs,'SGD', verbose=True)
+    #exp2(optimizer_kwargs,'SGD', verbose=True)
 
     ## Experiment 6 ##
     optimizer_kwargs = {
@@ -398,12 +400,12 @@ if __name__ == '__main__':
     batch_size = 16
     epochs = 5
     optimizer = 'SGD'
-    #exp6(optimizer_kwargs, conv1_out=conv1_out, conv2_out=conv2_out, stride=stride, kernel=kernel, padding=padding, epochs=epochs, batch_size=batch_size, verbose=True)
+    exp6(optimizer_kwargs, conv1_out=conv1_out, conv2_out=conv2_out, stride=stride, kernel=kernel, padding=padding, epochs=epochs, batch_size=batch_size, verbose=True)
     
     ## Experiment 7 ##
     params_mlp = {
         'hidden_layer_size': 128,
-        'epochs': 1,
+        'epochs': 100,
         'batch_size': 256,
         'lr': 0.01,
         'momentum': 0.9,
@@ -415,11 +417,24 @@ if __name__ == '__main__':
         'stride': 1,
         'kernel_size': 3,
         'padding': 2,
-        'epochs': 1,
+        'epochs': 20,
         'batch_size': 16,
         'lr': 0.01,
         'momentum': 0.9,
         'optimizer': 'SGD'
     }
     exp7(params_mlp, params_cnn, verbose=True)
+
+    ## Experiment 8 ##
+    optimizer_kwargs = {
+        'lr': 0.01
+        }
+    conv1_out = 32
+    conv2_out = 64
+    stride = 1
+    kernel = 3
+    padding = 2
+    batch_size = 16
+    epochs = 20
+    exp8(optimizer_kwargs, conv1_out=conv1_out, conv2_out=conv2_out, stride=stride, kernel=kernel, padding=padding, epochs=epochs, batch_size=batch_size, verbose=True)
     

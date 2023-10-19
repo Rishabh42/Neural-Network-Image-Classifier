@@ -34,7 +34,7 @@ def load_and_preprocess_data(data_dirname, dataset_name, normalize=True, mlp=Tru
 
     if normalize:
         X_train = 2 * (X_train / 255.) - 1
-        X_test = 2 * (X_test / 255.) / - 1
+        X_test = 2 * (X_test / 255.) - 1
 
     if mlp:
         X_train = np.array(X_train).reshape(X_train.shape[0], -1)
