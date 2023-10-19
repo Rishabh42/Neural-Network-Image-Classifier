@@ -314,9 +314,9 @@ def cnn_grid_search(param_grid, filepath='./out/grid_search/cnn', verbose=False)
 
     # grid search
     for params in param_combinations:
-        conv1_out, conv2_out, stride, kernel_size, padding, optimizer_name, lr, batch_size, epochs = params
+        conv1_out, conv2_out, stride, kernel_size, padding, optimizer_name, lr, momentum, batch_size, epochs = params
         if optimizer_name == 'SGD':
-            optimizer_kwargs = {'lr': lr, 'momentum': 0.9}
+            optimizer_kwargs = {'lr': lr, 'momentum': momentum}
         elif optimizer_name == 'Adam':
             optimizer_kwargs = {'lr': lr}
         trainloader = torch.utils.data.DataLoader(trainset, batch_size=batch_size, shuffle=True)
@@ -365,12 +365,13 @@ if __name__ == '__main__':
         'stride': [1],
         'kernel_size': [3, 5],
         'padding': [1, 2],
-        'optimizer': ['SGD', 'Adam'],
+        'optimizer': ['SGD'],
         'lr': [0.001, 0.01],
+        'momentum': [0.0, 0.5, 0.9],
         'batch_size': [16, 32, 64],
-        'epochs': [3, 5]
+        'epochs': [5]
     }
-    #cnn_grid_search(param_grid, verbose=True)
+    cnn_grid_search(param_grid, verbose=True)
 
     ## Experiment 1 ##
     optimizer_kwargs = {

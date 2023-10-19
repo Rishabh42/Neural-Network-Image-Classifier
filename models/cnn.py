@@ -78,9 +78,9 @@ class CNN(nn.Module):
             
             if verbose and (epoch % print_every == 0 or epoch == epochs - 1):
                 epoch_loss = running_loss_epoch / batch_counter_epoch
-                epoch_acc = correct_epoch / total_epoch
-                test_loss, test_acc = self.evaluate(test_loader)
+                epoch_acc = correct_epoch / total_epoch      
                 if test_loader is not None:
+                    test_loss, test_acc = self.evaluate(test_loader)
                     print(f'Epoch {epoch+1}/{epochs}: Train Loss={epoch_loss:.4f}, Train Acc={epoch_acc:.4f}, Test Loss={test_loss:.4f}, Test Acc={test_acc:.4f}')
                 else:
                     print(f'Epoch {epoch+1}/{epochs}: Train Loss={epoch_loss:.4f}, Train Acc={epoch_acc:.4f}')
