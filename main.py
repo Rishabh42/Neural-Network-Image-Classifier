@@ -191,6 +191,80 @@ def exp3(optimizer_kwargs, optimizer_name,filepath='./out/exp3/', epochs=50, bat
 
     return histories, final_accuracies
 
+def exp4(filepath='./out/exp4/', epochs=100, batch_size=256, verbose=True):
+    X_train, X_test, y_train_oh, y_test_oh = load_and_preprocess_data('./data/F_MNIST_data', dataset_name='F_MNIST')
+
+    regularization_methods = ["None", "l1", "l2"]
+    optimizer_kwargs_list = [
+        {
+        'lr': 0.01, 
+        'decay': 1e-6, 
+        'momentum': 0.9,
+        'regularization': 'None',
+        'lambd': 0.001
+        },
+        {
+        'lr': 0.01, 
+        'decay': 1e-6, 
+        'momentum': 0.9,
+        'regularization': 'l1',
+        'lambd': 0.001
+        },
+        {
+        'lr': 0.01, 
+        'decay': 1e-6, 
+        'momentum': 0.9,
+        'regularization': 'l2',
+        'lambd': 0.001
+        },
+    ]
+
+    histories = []
+    final_accuracies = []
+
+    for optimizer_i in optimizer_kwargs_list:
+        print(f"Training {optimizer_i['regularization']} regularization model...")
+        model = MLP(
+            layer_sizes=[X_train.shape[1], 128, 128, y_train_oh.shape[1]],
+            act_fn=ReLU(),
+            loss_fn=CrossEntropyLoss(),
+            softmax_fn=Softmax(),
+            weight_initializer=kaiming,
+        )
+
+        optimizer = SGD(**optimizer_i)
+
+        history = model.fit(
+            X_train, y_train_oh, optimizer, X_test=X_test, y_test=y_test_oh,
+            epochs=epochs, batch_size=batch_size, verbose=verbose
+        )
+
+        histories.append(history)
+
+        # Calculate and record the final test accuracy
+        final_test_acc = np.mean(np.argmax(model.forward(X_test)[-1], axis=1) == np.argmax(y_test_oh, axis=1))
+        final_accuracies.append((optimizer_i['regularization'], final_test_acc))
+
+        print(f"{optimizer_i['regularization']} Model - Final Test Accuracy: {final_test_acc:.4f}\n")
+
+        #TODO: create plots (later)
+
+    # save histories
+    with open(f'{filepath}/histories.pickle', 'wb') as f:
+        pickle.dump(histories, f)
+
+    # Save final accuracies
+    with open(f'{filepath}/final_accuracies.pickle', 'wb') as f:
+        pickle.dump(final_accuracies, f)
+
+    # save plots
+    compare_training_histories(histories, titles=list(regularization_methods), 
+                                filename=f'{filepath}/training_histories.png', show=False)
+    compare_accuracies(histories, labels=list(regularization_methods), plot_train=False,
+                       filename=f'{filepath}/accuracies.png', show=False)
+
+    return histories, final_accuracies
+
 
 def exp6(optimizer_kwargs, filepath='./out/exp6', stride=1, kernel=3, 
          padding=1, epochs=100, batch_size=16, verbose=True):
@@ -301,5 +375,6 @@ if __name__ == '__main__':
     }
 
     # exp6_grid_search(param_grid, verbose=True)
-    exp3(optimizer_kwargs,'SGD', verbose=True)
+    # exp3(optimizer_kwargs,'SGD', verbose=True)
+    exp4(verbose=True)
 
