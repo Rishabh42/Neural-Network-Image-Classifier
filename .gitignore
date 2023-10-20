@@ -5,11 +5,6 @@ out/figures/*
 data/*
 !data/.gitkeep
 
-out/exp1/*
-out/exp2/*
-out/exp3/*
-out/exp4/*
-
 !out/exp1/.gitkeep
 !out/exp2/.gitkeep
 !out/exp3/.gitkeep
