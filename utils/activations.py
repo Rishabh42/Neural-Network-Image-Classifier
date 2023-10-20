@@ -57,3 +57,10 @@ class Softmax(ActivationFunction):
         #return self.forward(z) * self.forward(1 - z)
         # usually you compute the gradient of the loss function with respect to the inputs of the Softmax function during backprop
         raise NotImplementedError
+class Softplus(ActivationFunction):
+
+    def forward(self, Z: np.ndarray) -> np.ndarray:
+        return np.log(1.0 + np.exp(Z))
+
+    def gradient(self, Z: np.ndarray) -> np.ndarray:
+        return 1.0 / (1.0 + np.exp(-Z))

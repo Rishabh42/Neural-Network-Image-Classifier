@@ -7,7 +7,7 @@ import pandas as pd
 from sklearn.model_selection import train_test_split
 
 from utils.weight_initializers import all_zeros, uniform, gaussian, xavier_uniform, kaiming
-from utils.activations import ReLU, Softmax
+from utils.activations import ReLU, Logistic, Tanh, Softmax
 from utils.loss_functions import CrossEntropyLoss
 from utils.optimizers import SGD, Adam
 from models.mlp import MLP
@@ -36,6 +36,7 @@ def exp1(optimizer_kwargs, optimizer_name, filepath='./out/exp1/',
         if optimizer_name == 'SGD':
             optimizer = SGD(**optimizer_kwargs)
         elif optimizer_name == 'Adam':
+            optimizer_kwargs.pop('momentum', None)
             optimizer = Adam(**optimizer_kwargs)
 
         history = model.fit(X_train, y_train_oh, optimizer, X_test=X_test, y_test=y_test_oh, epochs=epochs, batch_size=batch_size, verbose=verbose)
@@ -66,8 +67,7 @@ def exp1(optimizer_kwargs, optimizer_name, filepath='./out/exp1/',
 
     return histories, final_accuracies
 
-
-def exp2(optimizer_kwargs, optimizer_name,filepath='./out/exp2/', epochs=100, batch_size=256, verbose=True):
+def exp2(optimizer_kwargs, optimizer_name, filepath='./out/exp2/', epochs=50, batch_size=256, verbose=True):
     X_train, X_test, y_train_oh, y_test_oh = load_and_preprocess_data('./data/F_MNIST_data', dataset_name='F_MNIST')
 
     model_architectures = [
@@ -101,6 +101,7 @@ def exp2(optimizer_kwargs, optimizer_name,filepath='./out/exp2/', epochs=100, ba
         if optimizer_name == 'SGD':
             optimizer = SGD(**optimizer_kwargs)
         elif optimizer_name == 'Adam':
+            optimizer_kwargs.pop('momentum', None)
             optimizer = Adam(**optimizer_kwargs)
 
         history = model.fit(
@@ -116,18 +117,191 @@ def exp2(optimizer_kwargs, optimizer_name,filepath='./out/exp2/', epochs=100, ba
 
         print(f"{architecture['name']} Model - Final Test Accuracy: {final_test_acc:.4f}\n")
 
-        #TODO:save history
-        #TODO: create plots (later)
+    # save histories
+    with open(f'{filepath}/histories.pickle', 'wb') as f:
+        pickle.dump(histories, f)
 
     # Save final accuracies
     with open(f'{filepath}/final_accuracies.pickle', 'wb') as f:
         pickle.dump(final_accuracies, f)
 
-    # Save training histories and create plots for comparison
-    # Implement the functions to save and compare results or use libraries like Matplotlib.
+    # save plots
+    model_names = ['No Hidden Layers', 'Single Hidden Layer', 'Two Hidden Layers']
+
+    compare_training_histories(histories, titles=list(model_names), 
+                                filename=f'{filepath}/training_histories.png', show=False)
+    compare_accuracies(histories, labels=list(model_names), plot_train=False,
+                       filename=f'{filepath}/accuracies.png', show=False)
 
     return histories, final_accuracies
 
+def exp3(optimizer_kwargs, optimizer_name, filepath='./out/exp3/', epochs=50, batch_size=256, verbose=True):
+    X_train, X_test, y_train_oh, y_test_oh = load_and_preprocess_data('./data/F_MNIST_data', dataset_name='F_MNIST')
+
+    # Comparing Logistic and Softplus activations with ReLU
+    activations = [Logistic(), Tanh(), ReLU()]
+
+    histories = []
+    final_accuracies = []
+
+    for activation in activations:
+        activation_name = activation.__class__.__name__
+        print(f"Training model with {activation_name} activation...")
+
+        model = MLP(
+            layer_sizes=[X_train.shape[1], 128, 128, y_train_oh.shape[1]],
+            act_fn=activation,
+            loss_fn=CrossEntropyLoss(),
+            softmax_fn=Softmax(),
+            weight_initializer=kaiming,
+        )
+
+        if optimizer_name == 'SGD':
+            optimizer = SGD(**optimizer_kwargs)
+        elif optimizer_name == 'Adam':
+            optimizer_kwargs.pop('momentum', None)
+            optimizer = Adam(**optimizer_kwargs)
+
+        history = model.fit(
+            X_train, y_train_oh, optimizer, X_test=X_test, y_test=y_test_oh,
+            epochs=epochs, batch_size=batch_size, verbose=verbose
+        )
+
+        histories.append(history)
+
+        # Calculate and record the final test accuracy
+        final_test_acc = np.mean(np.argmax(model.forward(X_test)[-1], axis=1) == np.argmax(y_test_oh, axis=1))
+        final_accuracies.append((activation_name, final_test_acc))
+
+        print(f"{activation_name} Model - Final Test Accuracy: {final_test_acc:.4f}\n")
+
+    # save histories
+    with open(f'{filepath}/histories.pickle', 'wb') as f:
+        pickle.dump(histories, f)
+
+    # Save final accuracies
+    with open(f'{filepath}/final_accuracies.pickle', 'wb') as f:
+        pickle.dump(final_accuracies, f)
+
+    # save plots
+    activation_models = ["Logistic", "Tanh", "ReLU"]
+
+    compare_training_histories(histories, titles=list(activation_models), 
+                                filename=f'{filepath}/training_histories.png', show=False)
+    compare_accuracies(histories, labels=list(activation_models), plot_train=False,
+                       filename=f'{filepath}/accuracies.png', show=False)
+
+    return histories, final_accuracies
+
+def exp4(optimizer_kwargs, optimizer_name, filepath='./out/exp4/', epochs=50, batch_size=256, verbose=True):
+    X_train, X_test, y_train_oh, y_test_oh = load_and_preprocess_data('./data/F_MNIST_data', dataset_name='F_MNIST')
+
+    regularization_methods = ["None", "l1", "l2"]
+
+    histories = []
+    final_accuracies = []
+
+    for regularizer in regularization_methods:
+        print(f"Training {regularizer} regularization model...")
+        optimizer_kwargs['regularization'] = regularizer if regularizer != "None" else None
+
+        if optimizer_name == 'SGD':
+            optimizer = SGD(**optimizer_kwargs)
+        elif optimizer_name == 'Adam':
+            optimizer_kwargs.pop('momentum', None)
+            optimizer = Adam(**optimizer_kwargs)
+
+        model = MLP(
+            layer_sizes=[X_train.shape[1], 128, 128, y_train_oh.shape[1]],
+            act_fn=ReLU(),
+            loss_fn=CrossEntropyLoss(),
+            softmax_fn=Softmax(),
+            weight_initializer=kaiming,
+        )
+
+        history = model.fit(
+            X_train, y_train_oh, optimizer, X_test=X_test, y_test=y_test_oh,
+            epochs=epochs, batch_size=batch_size, verbose=verbose, print_every=5
+        )
+
+        histories.append(history)
+
+        # Calculate and record the final test accuracy
+        final_test_acc = np.mean(np.argmax(model.forward(X_test)[-1], axis=1) == np.argmax(y_test_oh, axis=1))
+        final_accuracies.append((optimizer_kwargs['regularization'], final_test_acc))
+
+        print(f"{optimizer_kwargs['regularization']} Model - Final Test Accuracy: {final_test_acc:.4f}\n")
+
+    # save histories
+    with open(f'{filepath}/histories.pickle', 'wb') as f:
+        pickle.dump(histories, f)
+
+    # Save final accuracies
+    with open(f'{filepath}/final_accuracies.pickle', 'wb') as f:
+        pickle.dump(final_accuracies, f)
+
+    # save plots
+    compare_training_histories(histories, titles=list(regularization_methods), 
+                                filename=f'{filepath}/training_histories.png', show=False)
+    compare_accuracies(histories, labels=list(regularization_methods), plot_train=False,
+                       filename=f'{filepath}/accuracies.png', show=False)
+
+    return histories, final_accuracies
+
+def exp5(optimizer_kwargs, optimizer_name, filepath='./out/exp5/', epochs=50, batch_size=256, verbose=True):
+    normalize_data_flags = [True, False]
+
+    histories = []
+    final_accuracies = []
+
+    for norm_param in normalize_data_flags:
+        X_train, X_test, y_train_oh, y_test_oh = load_and_preprocess_data('./data/F_MNIST_data', dataset_name='F_MNIST', normalize=norm_param)
+
+        print(f"Training ReLU model with norm flag: {norm_param}")
+        model = MLP(
+            layer_sizes=[X_train.shape[1], 128, 128, y_train_oh.shape[1]],
+            act_fn=ReLU(),
+            loss_fn=CrossEntropyLoss(),
+            softmax_fn=Softmax(),
+            weight_initializer=kaiming,
+        )
+
+        if optimizer_name == 'SGD':
+            optimizer = SGD(**optimizer_kwargs)
+        elif optimizer_name == 'Adam':
+            optimizer_kwargs.pop('momentum', None)
+            optimizer = Adam(**optimizer_kwargs)
+
+        history = model.fit(
+            X_train, y_train_oh, optimizer, X_test=X_test, y_test=y_test_oh,
+            epochs=epochs, batch_size=batch_size, verbose=verbose
+        )
+
+        histories.append(history)
+
+        # Calculate and record the final test accuracy
+        final_test_acc = np.mean(np.argmax(model.forward(X_test)[-1], axis=1) == np.argmax(y_test_oh, axis=1))
+        final_accuracies.append((f"Norm flag {norm_param}", final_test_acc))
+
+        print(f"Model with norm flag {norm_param} - Final Test Accuracy: {final_test_acc:.4f}\n")
+
+    # save histories
+    with open(f'{filepath}/histories.pickle', 'wb') as f:
+        pickle.dump(histories, f)
+
+    # Save final accuracies
+    with open(f'{filepath}/final_accuracies.pickle', 'wb') as f:
+        pickle.dump(final_accuracies, f)
+
+    # save plots
+    data_modes = ["Normalized", "Unnormalized"]
+
+    compare_training_histories(histories, titles=data_modes, 
+                                filename=f'{filepath}/training_histories.png', show=False)
+    compare_accuracies(histories, labels=data_modes, plot_train=False,
+                       filename=f'{filepath}/accuracies.png', show=False)
+
+    return histories, final_accuracies
 
 def exp6(optimizer_kwargs, filepath='./out/exp6', conv1_out=32, conv2_out=64, stride=1, 
          kernel=3, padding=2, epochs=5, batch_size=16, verbose=True):
@@ -156,7 +330,6 @@ def exp6(optimizer_kwargs, filepath='./out/exp6', conv1_out=32, conv2_out=64, st
                           filename=f'{filepath}/training_history.png', show=False)
 
     return history, final_accuracy
-
 
 def exp7(params_mlp, params_cnn, filepath='./out/exp7', verbose=True):
     histories = []
@@ -240,7 +413,6 @@ def exp7(params_mlp, params_cnn, filepath='./out/exp7', verbose=True):
     plot_training_history(histories[1], num_saves_per_epoch=num_saves_per_epoch, filename=f'{filepath}/cnn_training_history.png', show=False)
 
     return histories, final_accuracies
-
 
 def exp8(lr_sgd, lr_adam, filepath='./out/exp8', conv1_out=32, conv2_out=64, stride=1, 
          kernel=3, padding=2, epochs=5, batch_size=16, verbose=True):
@@ -379,18 +551,53 @@ if __name__ == '__main__':
     ## Experiment 1 ##
     optimizer_kwargs = {
         'lr': 0.01, 
-        'momentum': 0.9,
-        'regularization': 'l2',
-        'lambd': 0.001
+        'momentum': 0.9
         }
     optimizer = 'SGD'
-    batch_size = 256
-    epochs = 100
+    batch_size = 64
+    epochs = 50
     #exp1(optimizer_kwargs, optimizer_name=optimizer, epochs=epochs, batch_size=batch_size)
 
     ## Experiment 2 ##
-    # TODO: define params for exp2
-    #exp2(optimizer_kwargs,'SGD', verbose=True)
+    optimizer_kwargs = {
+        'lr': 0.01, 
+        'momentum': 0.9
+        }
+    optimizer = 'SGD'
+    batch_size = 64
+    epochs = 25
+    #exp2(optimizer_kwargs, optimizer_name=optimizer, epochs=epochs, batch_size=batch_size)
+        
+    ## Experiment 3 ##
+    optimizer_kwargs = {
+        'lr': 0.01, 
+        'momentum': 0.9
+        }
+    optimizer = 'SGD'
+    batch_size = 64
+    epochs = 25
+    #exp3(optimizer_kwargs, optimizer_name=optimizer, epochs=epochs, batch_size=batch_size)
+
+    ## Experiment 4 ##
+    optimizer_kwargs = {
+        'lr': 0.01, 
+        'momentum': 0.9,
+        'lambd': 0.001
+        }
+    optimizer = 'SGD'
+    batch_size = 64
+    epochs = 25
+    exp4(optimizer_kwargs, optimizer_name=optimizer, epochs=epochs, batch_size=batch_size)
+
+    ## Experiment 5 ##
+    optimizer_kwargs = {
+        'lr': 0.01, 
+        'momentum': 0.9
+        }
+    optimizer = 'SGD'
+    batch_size = 64
+    epochs = 25
+    #exp5(optimizer_kwargs, optimizer_name=optimizer, epochs=epochs, batch_size=batch_size)
 
     ## Experiment 6 ##
     optimizer_kwargs = {
@@ -405,13 +612,13 @@ if __name__ == '__main__':
     batch_size = 32
     epochs = 5
     optimizer = 'SGD'
-    exp6(optimizer_kwargs, conv1_out=conv1_out, conv2_out=conv2_out, stride=stride, kernel=kernel, padding=padding, epochs=epochs, batch_size=batch_size, verbose=True)
+    #exp6(optimizer_kwargs, conv1_out=conv1_out, conv2_out=conv2_out, stride=stride, kernel=kernel, padding=padding, epochs=epochs, batch_size=batch_size, verbose=True)
     
     ## Experiment 7 ##
     params_mlp = {
         'hidden_layer_size': 128,
-        'epochs': 100,
-        'batch_size': 256,
+        'epochs': 25,
+        'batch_size': 64,
         'lr': 0.01,
         'momentum': 0.9,
         'optimizer': 'SGD'
@@ -428,7 +635,7 @@ if __name__ == '__main__':
         'momentum': 0.9,
         'optimizer': 'SGD'
     }
-    exp7(params_mlp, params_cnn, verbose=True)
+    #exp7(params_mlp, params_cnn, verbose=True)
 
     ## Experiment 8 ##
     lr_sgd = 0.01
@@ -440,5 +647,5 @@ if __name__ == '__main__':
     padding = 2
     batch_size = 32
     epochs = 5
-    exp8(lr_sgd=lr_sgd, lr_adam=lr_adam, conv1_out=conv1_out, conv2_out=conv2_out, stride=stride, kernel=kernel, padding=padding, epochs=epochs, batch_size=batch_size, verbose=True)
+    #exp8(lr_sgd=lr_sgd, lr_adam=lr_adam, conv1_out=conv1_out, conv2_out=conv2_out, stride=stride, kernel=kernel, padding=padding, epochs=epochs, batch_size=batch_size, verbose=True)
     
