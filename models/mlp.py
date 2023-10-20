@@ -1,5 +1,6 @@
 import numpy as np
 from utils.accuracy import evaluate_acc
+
 class MLP:
     def __init__(self, layer_sizes, act_fn, loss_fn, softmax_fn, weight_initializer):
         self.layer_sizes = layer_sizes
@@ -43,6 +44,9 @@ class MLP:
         num_samples = X.shape[0]
         history = {'train_loss': [], 'train_acc': [], 'test_loss': [], 'test_acc': []}
 
+        if X_test is not None:
+            test_ix = [_ for _ in range(X_test.shape[0])]
+
         for epoch in range(epochs):
             permuted_indices = np.random.permutation(num_samples)
             X_shuffled = X[permuted_indices]
@@ -68,7 +72,8 @@ class MLP:
                 history['train_acc'].append(train_acc)
 
                 if X_test is not None and y_test is not None:
-                    test_loss, test_acc = self.calculate_metrics(X_test, y_test)
+                    slice = np.random.choice(test_ix, 200)
+                    test_loss, test_acc = self.calculate_metrics(X_test[slice], y_test[slice])
                     history['test_loss'].append(test_loss)
                     history['test_acc'].append(test_acc)
 
