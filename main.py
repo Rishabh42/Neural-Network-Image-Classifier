@@ -362,6 +362,70 @@ def mlp_grid_search(param_grid, filepath='./out/grid_search/mlp', verbose=False)
         print(results.sort_values(by=['val_accuracy'], ascending=False))
 
 
+def regularization_grid_search(param_grid, filepath='./out/grid_search/regularization', verbose=False):
+
+    RUN_EXP = False
+
+    if RUN_EXP:
+        X_train, X_test, y_train_oh, y_test_oh = load_and_preprocess_data('./data/F_MNIST_data', dataset_name='F_MNIST',
+                                                                          normalize=True, mlp=True)
+        X_train, X_val, y_train_oh, y_val_oh = train_test_split(X_train, y_train_oh, test_size=0.15, random_state=42,
+                                                                stratify=y_train_oh)
+
+        histories = []
+        val_accuracies = []
+        all_results = []
+
+        param_combinations = product(*param_grid.values())
+        param_names = list(param_grid.keys())
+
+        # grid search
+        for params in param_combinations:
+            epochs, batch_size, lr, momentum, decay, regularization, lambd = params
+
+            optimizer_kwargs = {'lr': lr, 'momentum': momentum, 'decay': decay, 'regularization': regularization, 'lambd': lambd}
+            optimizer = SGD(**optimizer_kwargs)
+
+            # init model
+            model = MLP(layer_sizes = [X_train.shape[1], 128, 128, y_train_oh.shape[1]],
+                        act_fn=ReLU(),
+                        loss_fn=CrossEntropyLoss(),
+                        softmax_fn=Softmax(),
+                        weight_initializer=kaiming)
+
+            # train
+            history = model.fit(X_train, y_train_oh, optimizer, X_test=X_val, y_test=y_val_oh, batch_size=batch_size, epochs=epochs, verbose=False)
+            histories.append(history)
+
+            # eval on validation set
+            _, val_accuracy = model.calculate_metrics(X_val, y_val_oh)
+            val_accuracies.append(val_accuracy)
+
+            current_run_data = dict(zip(param_names, params))
+            current_run_data['val_accuracy'] = val_accuracy
+            all_results.append(current_run_data)
+
+            # Optionally print out the results for each combination of parameters
+            if verbose:
+                params_dict = dict(zip(param_names, params))
+                params_str = ', '.join(f'{key}={value}' for key, value in params_dict.items())
+                print(f"Completed training with params: {params_str}. Validation Accuracy: {val_accuracy:.4f}\n")
+
+        # save results
+        with open(f'{filepath}/histories.pickle', 'wb') as f:
+            pickle.dump(histories, f)
+        with open(f'{filepath}/val_accuracies.pickle', 'wb') as f:
+            pickle.dump(val_accuracies, f)
+        results_df = pd.DataFrame(all_results)
+        results_df.to_csv(f'{filepath}/grid_search_results.csv', index=False)
+
+        return histories, val_accuracies
+
+    else:
+        results = pd.read_csv(f'{filepath}/grid_search_results.csv')
+        print(results.sort_values(by=['val_accuracy'], ascending=False))
+
+
 def cnn_grid_search(param_grid, filepath='./out/grid_search/cnn', verbose=False):
 
     X_train, X_test, y_train, y_test = load_and_preprocess_data('./data/F_MNIST_data', dataset_name='F_MNIST', normalize=True, mlp=False)
@@ -424,13 +488,18 @@ if __name__ == '__main__':
     ### Grid Search ###
     ## MLP ##
     param_grid = {
-        'epochs': [100],
-        'batch_size': [64, 128, 256],
-        'lr': [0.01, 0.001],
-        'momentum': [0.9, 0.95],
-        'decay': [1e-6, 1e-7],
+        'epochs': [50],
+        'batch_size': [128],
+        'lr': [0.01],
+        'momentum': [0.95],
+        'decay': [1e-7],
+        'regularization': ['l1', 'l2'],
+        'lambd': [5e-3, 1e-3, 1e-4]
     }
-    mlp_grid_search(param_grid, verbose=True)
+    #mlp_grid_search(param_grid, verbose=True)
+
+    ## Regularization Constants ##
+    regularization_grid_search(param_grid, verbose=True)
     exit()
 
     ## CNN ##
