@@ -37,14 +37,16 @@ class CNN(nn.Module):
         return x
 
 
-    def fit(self, train_loader, test_loader=None, epochs=5, print_every=1, verbose=True, track_history=True):
+    def fit(self, train_loader, test_loader=None, epochs=10, print_every=1, save_every_n_batches=200, verbose=True, track_history=True):
         history = {'train_loss': [], 'train_acc': [], 'test_loss': [], 'test_acc': []}
 
         for epoch in range(epochs):
             self.train()
             running_loss, correct, total = 0.0, 0, 0
+            running_loss_epoch, correct_epoch, total_epoch = 0.0, 0, 0
+            batch_counter, batch_counter_epoch = 0, 0
             
-            for _, (data, target) in enumerate(train_loader):
+            for batch_idx, (data, target) in enumerate(train_loader):
                 self.optimizer.zero_grad()
                 output = self(data)
                 loss = self.criterion(output, target.type(torch.LongTensor))
@@ -52,41 +54,57 @@ class CNN(nn.Module):
                 self.optimizer.step()
 
                 running_loss += loss.item()
-                pred = output.argmax(dim=1, keepdim=True)  # get the idx of the max log-prob
+                running_loss_epoch += loss.item()
+                pred = output.argmax(dim=1, keepdim=True)
                 correct += pred.eq(target.view_as(pred)).sum().item()
+                correct_epoch += pred.eq(target.view_as(pred)).sum().item()
                 total += target.size(0)
+                total_epoch += target.size(0)
+                batch_counter += 1
+                batch_counter_epoch += 1
 
-            if track_history:
-                train_loss = running_loss / len(train_loader.dataset)
-                train_acc = correct / total
-                history['train_loss'].append(train_loss)
-                history['train_acc'].append(train_acc)
+                # save after metrics for every n batches
+                if track_history and batch_counter % save_every_n_batches == 0:
+                    history['train_loss'].append(running_loss / batch_counter)
+                    history['train_acc'].append(correct / total)
 
+                    if test_loader is not None:
+                        test_loss, test_acc = self.evaluate(test_loader, n_samples=2000)
+                        history['test_loss'].append(test_loss)
+                        history['test_acc'].append(test_acc)
+                        self.train()
+
+                    running_loss, correct, total, batch_counter = 0.0, 0, 0, 0
+            
+            if verbose and (epoch % print_every == 0 or epoch == epochs - 1):
+                epoch_loss = running_loss_epoch / batch_counter_epoch
+                epoch_acc = correct_epoch / total_epoch      
                 if test_loader is not None:
                     test_loss, test_acc = self.evaluate(test_loader)
-                    history['test_loss'].append(test_loss)
-                    history['test_acc'].append(test_acc)
-
-            if verbose and (epoch % print_every == 0 or epoch == epochs - 1):
-                if test_loader is not None:
-                    print(f'Epoch {epoch+1}/{epochs}: Train Loss={train_loss:.4f}, Train Acc={train_acc:.4f}, Test Loss={test_loss:.4f}, Test Acc={test_acc:.4f}')
+                    print(f'Epoch {epoch+1}/{epochs}: Train Loss={epoch_loss:.4f}, Train Acc={epoch_acc:.4f}, Test Loss={test_loss:.4f}, Test Acc={test_acc:.4f}')
                 else:
-                    print(f'Epoch {epoch+1}/{epochs}: Train Loss={train_loss:.4f}, Train Acc={train_acc:.4f}')
+                    print(f'Epoch {epoch+1}/{epochs}: Train Loss={epoch_loss:.4f}, Train Acc={epoch_acc:.4f}')
 
         return history
 
-    def evaluate(self, test_loader):
-        self.eval() # set the model to eval mode
+    def evaluate(self, test_loader, n_samples=None):
+        self.eval()
         test_loss, correct, total = 0, 0, 0
+        batch_counter = 0
         with torch.no_grad():
             for data, target in test_loader:
+                # break the loop if the required number of samples have been evaluated
+                if n_samples is not None and total >= n_samples:
+                    break
                 output = self(data)
                 test_loss += self.criterion(output, target.type(torch.LongTensor)).item()
                 pred = output.argmax(dim=1, keepdim=True)
                 correct += pred.eq(target.view_as(pred)).sum().item()
                 total += target.size(0)
+                batch_counter += 1
 
-        test_loss /= len(test_loader.dataset)
+        # Normalize the loss and accuracy by the actual number of samples evaluated
+        test_loss /= len(test_loader) if n_samples is None else batch_counter
         test_acc = correct / total
 
         return test_loss, test_acc
