@@ -358,6 +358,9 @@ def cnn_grid_search(param_grid, filepath='./out/grid_search/cnn', verbose=False)
 if __name__ == '__main__':
 
     ### Grid Search ###
+    ## MLP ##
+    # TODO
+
     ## CNN ##
     param_grid = {
         'conv1_out': [16, 32],
@@ -371,7 +374,7 @@ if __name__ == '__main__':
         'batch_size': [16, 32, 64],
         'epochs': [5]
     }
-    cnn_grid_search(param_grid, verbose=True)
+    #cnn_grid_search(param_grid, verbose=True)
 
     ## Experiment 1 ##
     optimizer_kwargs = {
@@ -397,9 +400,9 @@ if __name__ == '__main__':
     conv1_out = 32
     conv2_out = 64
     stride = 1
-    kernel = 3
+    kernel = 5
     padding = 2
-    batch_size = 16
+    batch_size = 32
     epochs = 5
     optimizer = 'SGD'
     exp6(optimizer_kwargs, conv1_out=conv1_out, conv2_out=conv2_out, stride=stride, kernel=kernel, padding=padding, epochs=epochs, batch_size=batch_size, verbose=True)
@@ -417,15 +420,15 @@ if __name__ == '__main__':
         'conv1_out': 32,
         'conv2_out': 64,
         'stride': 1,
-        'kernel_size': 3,
+        'kernel_size': 5,
         'padding': 2,
         'epochs': 5,
-        'batch_size': 16,
+        'batch_size': 32,
         'lr': 0.01,
         'momentum': 0.9,
         'optimizer': 'SGD'
     }
-    #exp7(params_mlp, params_cnn, verbose=True)
+    exp7(params_mlp, params_cnn, verbose=True)
 
     ## Experiment 8 ##
     lr_sgd = 0.01
@@ -433,9 +436,9 @@ if __name__ == '__main__':
     conv1_out = 32
     conv2_out = 64
     stride = 1
-    kernel = 3
+    kernel = 5
     padding = 2
-    batch_size = 16
+    batch_size = 32
     epochs = 5
-    #exp8(lr_sgd=lr_sgd, lr_adam=lr_adam, conv1_out=conv1_out, conv2_out=conv2_out, stride=stride, kernel=kernel, padding=padding, epochs=epochs, batch_size=batch_size, verbose=True)
+    exp8(lr_sgd=lr_sgd, lr_adam=lr_adam, conv1_out=conv1_out, conv2_out=conv2_out, stride=stride, kernel=kernel, padding=padding, epochs=epochs, batch_size=batch_size, verbose=True)
     
