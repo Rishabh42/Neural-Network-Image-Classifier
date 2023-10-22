@@ -470,9 +470,7 @@ def exp8(lr_sgd, lr_adam, filepath='./out/exp8', conv1_out=32, conv2_out=64, str
     return histories, final_accuracies
 
 
-def mlp_grid_search(param_grid, filepath='./out/grid_search/mlp', verbose=False):
-
-    RUN_EXP = False
+def mlp_grid_search(param_grid, filepath='./out/grid_search/mlp', verbose=False, RUN_EXP=False):
 
     if RUN_EXP:
         X_train, X_test, y_train_oh, y_test_oh = load_and_preprocess_data('./data/F_MNIST_data', dataset_name='F_MNIST',
@@ -531,12 +529,11 @@ def mlp_grid_search(param_grid, filepath='./out/grid_search/mlp', verbose=False)
 
     else:
         results = pd.read_csv(f'{filepath}/grid_search_results.csv')
-        print(results.sort_values(by=['val_accuracy'], ascending=False))
+        return results.sort_values(by=['val_accuracy'], ascending=False)
 
 
-def regularization_grid_search(param_grid, filepath='./out/grid_search/regularization', verbose=False):
+def regularization_grid_search(param_grid, filepath='./out/grid_search/regularization', verbose=False, RUN_EXP=False):
 
-    RUN_EXP = False
 
     if RUN_EXP:
         X_train, X_test, y_train_oh, y_test_oh = load_and_preprocess_data('./data/F_MNIST_data', dataset_name='F_MNIST',
@@ -595,7 +592,7 @@ def regularization_grid_search(param_grid, filepath='./out/grid_search/regulariz
 
     else:
         results = pd.read_csv(f'{filepath}/grid_search_results.csv')
-        print(results.sort_values(by=['val_accuracy'], ascending=False))
+        return results.sort_values(by=['val_accuracy'], ascending=False)
 
 
 def cnn_grid_search(param_grid, filepath='./out/grid_search/cnn', verbose=False):
