@@ -73,7 +73,7 @@ class MLP:
 
                 if X_test is not None and y_test is not None:
                     slice = np.random.choice(test_ix, 200)
-                    test_loss, test_acc = self.calculate_metrics(X_test[slice], y_test[slice])
+                    test_loss, test_acc = self.calculate_metrics(X_test, y_test)
                     history['test_loss'].append(test_loss)
                     history['test_acc'].append(test_acc)
 
