@@ -2,6 +2,10 @@ import matplotlib.pyplot as plt
 import numpy as np
 import pickle
 import torch
+import torch.nn as nn
+import torch.optim as optim
+from torchvision import datasets, transforms
+from torchvision.models import resnet18, ResNet18_Weights
 from itertools import product
 import pandas as pd
 from sklearn.model_selection import train_test_split
@@ -469,6 +473,111 @@ def exp8(lr_sgd, lr_adam, filepath='./out/exp8', conv1_out=32, conv2_out=64, str
 
     return histories, final_accuracies
 
+def exp9(filepath='./out/exp9', fc_layers=[256, 128], epochs=5, batch_size=16, verbose=True,
+         save_every_n_batches=150, print_every=1):
+        
+    # define the normalization transform using the mean and std deviation values for ImageNet
+    normalize = transforms.Normalize(mean=[0.485, 0.456, 0.406],
+                                     std=[0.229, 0.224, 0.225])
+
+    # laod data with pecific normalization
+    transform = transforms.Compose([
+        transforms.ToTensor(),
+        normalize,
+    ])
+    trainset = datasets.CIFAR10(root='./data/cifar10_data', train=True, download=True, transform=transform)
+    testset = datasets.CIFAR10(root='./data/cifar10_data', train=False, download=True, transform=transform)
+    trainloader = torch.utils.data.DataLoader(trainset, batch_size=batch_size, shuffle=True)
+    testloader = torch.utils.data.DataLoader(testset, batch_size=batch_size, shuffle=False)
+
+    # load pre-trained resnet model
+    pre_trained_model = resnet18(weights=ResNet18_Weights.IMAGENET1K_V1)
+
+    # freeze conv layers
+    for param in pre_trained_model.parameters():
+        param.requires_grad = False
+
+    num_features = pre_trained_model.fc.in_features # get num features from last conv layer
+
+    # Create new fully connected layers
+    fc_layers = [num_features] + fc_layers + [10]
+    fc_model = []
+    for in_features, out_features in zip(fc_layers, fc_layers[1:]):
+        fc_model.extend([nn.Linear(in_features, out_features), nn.ReLU()])
+    fc_model.pop()  # remove the last ReLU layer
+
+    # Replace the last fully connected layer with the new fully connected layers
+    pre_trained_model.fc = nn.Sequential(*fc_model)
+
+    optimizer = optim.Adam(pre_trained_model.fc.parameters())
+    criterion = nn.CrossEntropyLoss()
+
+    history = {'train_loss': [], 'train_acc': [], 'test_loss': [], 'test_acc': []}
+
+    for epoch in range(epochs):
+        pre_trained_model.train() 
+        running_loss, correct, total = 0.0, 0, 0
+        batch_counter = 0
+        
+        for batch_idx, (data, target) in enumerate(trainloader):
+            optimizer.zero_grad()
+            output = pre_trained_model(data)
+            loss = criterion(output, target.type(torch.LongTensor))
+            loss.backward()
+            optimizer.step()
+
+            running_loss += loss.item()
+            pred = output.argmax(dim=1, keepdim=True)
+            correct += pred.eq(target.view_as(pred)).sum().item()
+            total += target.size(0)
+            batch_counter += 1
+
+            # save metrics for every n batches
+            if batch_counter % save_every_n_batches == 0:
+                history['train_loss'].append(running_loss / batch_counter)
+                history['train_acc'].append(correct / total)
+                running_loss, correct, total, batch_counter = 0.0, 0, 0, 0
+                
+                # evaluate on test data
+                pre_trained_model.eval() 
+                test_loss, test_correct, test_total = 0, 0, 0
+                n_samples = 2000
+                with torch.no_grad():
+                    for data, target in testloader:
+                        if n_samples is not None and total >= n_samples:
+                            break
+                        output = pre_trained_model(data)
+                        test_loss += criterion(output, target.type(torch.LongTensor)).item()
+                        pred = output.argmax(dim=1, keepdim=True)
+                        test_correct += pred.eq(target.view_as(pred)).sum().item()
+                        test_total += target.size(0)
+                test_acc = test_correct / test_total
+                history['test_loss'].append(test_loss / len(testloader))
+                history['test_acc'].append(test_acc)
+                pre_trained_model.train() 
+        
+        if verbose and (epoch % print_every == 0 or epoch == epochs - 1):
+            epoch_loss = sum(history['train_loss'][-len(trainloader)//save_every_n_batches:]) / (len(trainloader)//save_every_n_batches)
+            epoch_acc = sum(history['train_acc'][-len(trainloader)//save_every_n_batches:]) / (len(trainloader)//save_every_n_batches)
+            epoch_test_loss = history['test_loss'][-1]
+            epoch_test_acc = history['test_acc'][-1]
+            print(f'Epoch {epoch+1}/{epochs}: Train Loss={epoch_loss:.4f}, Train Acc={epoch_acc:.4f}, Test Loss={epoch_test_loss:.4f}, Test Acc={epoch_test_acc:.4f}')
+
+    final_accuracy = 100 * correct / total
+    print(f'Final Test Accuracy: {final_accuracy:.2f}%')
+
+    # save results
+    with open(f'{filepath}/history.pickle', 'wb') as f:
+        pickle.dump(history, f)
+    with open(f'{filepath}/final_accuracy.pickle', 'wb') as f:
+        pickle.dump(final_accuracy, f)
+
+    # save plots
+    num_saves_per_epoch = np.floor(len(trainloader) / 150)
+    plot_training_history(history, num_saves_per_epoch=num_saves_per_epoch, 
+                          filename=f'{filepath}/training_history.png', show=False)
+
+    return history, final_accuracy
 
 def mlp_grid_search(param_grid, filepath='./out/grid_search/mlp', verbose=False, RUN_EXP=False):
 
@@ -725,7 +834,7 @@ if __name__ == '__main__':
     optimizer = 'SGD'
     batch_size = 64
     epochs = 25
-    exp4(optimizer_kwargs, optimizer_name=optimizer, epochs=epochs, batch_size=batch_size)
+    #exp4(optimizer_kwargs, optimizer_name=optimizer, epochs=epochs, batch_size=batch_size)
 
     ## Experiment 5 ##
     optimizer_kwargs = {
@@ -745,7 +854,7 @@ if __name__ == '__main__':
     conv1_out = 32
     conv2_out = 64
     stride = 1
-    kernel = 5
+    kernel = 3
     padding = 2
     batch_size = 32
     epochs = 5
@@ -787,3 +896,8 @@ if __name__ == '__main__':
     epochs = 5
     #exp8(lr_sgd=lr_sgd, lr_adam=lr_adam, conv1_out=conv1_out, conv2_out=conv2_out, stride=stride, kernel=kernel, padding=padding, epochs=epochs, batch_size=batch_size, verbose=True)
     
+    ## Experiment 9 ##
+    fc_layers = [512, 256]
+    epochs = 5
+    batch_size = 16
+    exp9(fc_layers=fc_layers, epochs=epochs, batch_size=batch_size, verbose=True)
