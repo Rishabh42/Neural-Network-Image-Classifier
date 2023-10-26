@@ -12,7 +12,7 @@ from utils.loss_functions import CrossEntropyLoss
 from utils.optimizers import SGD, Adam
 from models.mlp import MLP
 from models.cnn import CNN
-from utils.data_acquisition import load_and_preprocess_data
+from utils.data_acquisition import load_and_preprocess_data, pca_reduce
 from utils.plotting import compare_training_histories, plot_training_history, compare_accuracies
 
 
@@ -303,6 +303,66 @@ def exp5(optimizer_kwargs, optimizer_name, filepath='./out/exp5/', epochs=50, ba
 
     return histories, final_accuracies
 
+def exp5_pca(optimizer_kwargs, optimizer_name, filepath='./out/exp5_pca/', epochs=50, batch_size=256, verbose=True):
+    ranks = ['Full', 10, 100, 200]
+
+    histories = []
+    final_accuracies = []
+
+    X_train, X_test, y_train_oh, y_test_oh = load_and_preprocess_data('./data/F_MNIST_data', dataset_name='F_MNIST')
+
+    for rank in ranks:
+        if rank == 'Full':
+            X_train_rank, X_test_rank = X_train, X_test
+        else:
+            X_train_rank, X_test_rank = pca_reduce(X_train, X_test, n_components=rank)
+
+        print(f"Training on data of rank: {rank}, {X_train_rank.shape}")
+        model = MLP(
+            layer_sizes=[X_train_rank.shape[1], 128, 128, y_train_oh.shape[1]],
+            act_fn=ReLU(),
+            loss_fn=CrossEntropyLoss(),
+            softmax_fn=Softmax(),
+            weight_initializer=kaiming,
+        )
+
+        if optimizer_name == 'SGD':
+            optimizer = SGD(**optimizer_kwargs)
+        elif optimizer_name == 'Adam':
+            optimizer_kwargs.pop('momentum', None)
+            optimizer = Adam(**optimizer_kwargs)
+
+        history = model.fit(
+            X_train_rank, y_train_oh, optimizer, X_test=X_test_rank, y_test=y_test_oh,
+            epochs=epochs, batch_size=batch_size, verbose=verbose
+        )
+
+        histories.append(history)
+
+        # Calculate and record the final test accuracy
+        final_test_acc = np.mean(np.argmax(model.forward(X_test_rank)[-1], axis=1) == np.argmax(y_test_oh, axis=1))
+        final_accuracies.append((f"Rank {rank}", final_test_acc))
+
+        print(f"Model train with rank {rank} data - Final Test Accuracy: {final_test_acc:.4f}\n")
+
+    # save histories
+    with open(f'{filepath}/histories.pickle', 'wb') as f:
+        pickle.dump(histories, f)
+
+    # Save final accuracies
+    with open(f'{filepath}/final_accuracies.pickle', 'wb') as f:
+        pickle.dump(final_accuracies, f)
+
+    # save plots
+    data_modes = ["Full Rank", "Rank 10", 'Rank 100', 'Rank 200']
+
+    compare_training_histories(histories, titles=data_modes,
+                               filename=f'{filepath}/training_histories.png', show=False)
+    compare_accuracies(histories, labels=data_modes, plot_train=False,
+                       filename=f'{filepath}/accuracies.png', show=False)
+
+    return histories, final_accuracies
+
 def exp6(optimizer_kwargs, filepath='./out/exp6', conv1_out=32, conv2_out=64, stride=1, 
          kernel=3, padding=2, epochs=5, batch_size=16, verbose=True):
     
@@ -470,6 +530,131 @@ def exp8(lr_sgd, lr_adam, filepath='./out/exp8', conv1_out=32, conv2_out=64, str
     return histories, final_accuracies
 
 
+def mlp_grid_search(param_grid, filepath='./out/grid_search/mlp', verbose=False, RUN_EXP=False):
+
+    if RUN_EXP:
+        X_train, X_test, y_train_oh, y_test_oh = load_and_preprocess_data('./data/F_MNIST_data', dataset_name='F_MNIST',
+                                                                    normalize=True, mlp=True)
+        X_train, X_val, y_train_oh, y_val_oh = train_test_split(X_train, y_train_oh, test_size=0.15, random_state=42,
+                                                          stratify=y_train_oh)
+
+        histories = []
+        val_accuracies = []
+        all_results = []
+
+        param_combinations = product(*param_grid.values())
+        param_names = list(param_grid.keys())
+
+        # grid search
+        for params in param_combinations:
+            epochs, batch_size, lr, momentum, decay = params
+
+            optimizer_kwargs = {'lr': lr, 'momentum': momentum, 'decay': decay}
+            optimizer = SGD(**optimizer_kwargs)
+
+            # init model
+            model = MLP(layer_sizes = [X_train.shape[1], 128, y_train_oh.shape[1]],
+                        act_fn=ReLU(),
+                        loss_fn=CrossEntropyLoss(),
+                        softmax_fn=Softmax(),
+                        weight_initializer=kaiming)
+
+            # train
+            history = model.fit(X_train, y_train_oh, optimizer, X_test=X_val, y_test=y_val_oh, batch_size=batch_size, epochs=epochs, verbose=False)
+            histories.append(history)
+
+            # eval on validation set
+            _, val_accuracy = model.calculate_metrics(X_val, y_val_oh)
+            val_accuracies.append(val_accuracy)
+
+            current_run_data = dict(zip(param_names, params))
+            current_run_data['val_accuracy'] = val_accuracy
+            all_results.append(current_run_data)
+
+            # Optionally print out the results for each combination of parameters
+            if verbose:
+                params_dict = dict(zip(param_names, params))
+                params_str = ', '.join(f'{key}={value}' for key, value in params_dict.items())
+                print(f"Completed training with params: {params_str}. Validation Accuracy: {val_accuracy:.4f}\n")
+
+        # save results
+        with open(f'{filepath}/histories.pickle', 'wb') as f:
+            pickle.dump(histories, f)
+        with open(f'{filepath}/val_accuracies.pickle', 'wb') as f:
+            pickle.dump(val_accuracies, f)
+        results_df = pd.DataFrame(all_results)
+        results_df.to_csv(f'{filepath}/grid_search_results.csv', index=False)
+
+        return histories, val_accuracies
+
+    else:
+        results = pd.read_csv(f'{filepath}/grid_search_results.csv')
+        return results.sort_values(by=['val_accuracy'], ascending=False)
+
+
+def regularization_grid_search(param_grid, filepath='./out/grid_search/regularization', verbose=False, RUN_EXP=False):
+
+
+    if RUN_EXP:
+        X_train, X_test, y_train_oh, y_test_oh = load_and_preprocess_data('./data/F_MNIST_data', dataset_name='F_MNIST',
+                                                                          normalize=True, mlp=True)
+        X_train, X_val, y_train_oh, y_val_oh = train_test_split(X_train, y_train_oh, test_size=0.15, random_state=42,
+                                                                stratify=y_train_oh)
+
+        histories = []
+        val_accuracies = []
+        all_results = []
+
+        param_combinations = product(*param_grid.values())
+        param_names = list(param_grid.keys())
+
+        # grid search
+        for params in param_combinations:
+            epochs, batch_size, lr, momentum, decay, regularization, lambd = params
+
+            optimizer_kwargs = {'lr': lr, 'momentum': momentum, 'decay': decay, 'regularization': regularization, 'lambd': lambd}
+            optimizer = SGD(**optimizer_kwargs)
+
+            # init model
+            model = MLP(layer_sizes = [X_train.shape[1], 128, 128, y_train_oh.shape[1]],
+                        act_fn=ReLU(),
+                        loss_fn=CrossEntropyLoss(),
+                        softmax_fn=Softmax(),
+                        weight_initializer=kaiming)
+
+            # train
+            history = model.fit(X_train, y_train_oh, optimizer, X_test=X_val, y_test=y_val_oh, batch_size=batch_size, epochs=epochs, verbose=False)
+            histories.append(history)
+
+            # eval on validation set
+            _, val_accuracy = model.calculate_metrics(X_val, y_val_oh)
+            val_accuracies.append(val_accuracy)
+
+            current_run_data = dict(zip(param_names, params))
+            current_run_data['val_accuracy'] = val_accuracy
+            all_results.append(current_run_data)
+
+            # Optionally print out the results for each combination of parameters
+            if verbose:
+                params_dict = dict(zip(param_names, params))
+                params_str = ', '.join(f'{key}={value}' for key, value in params_dict.items())
+                print(f"Completed training with params: {params_str}. Validation Accuracy: {val_accuracy:.4f}\n")
+
+        # save results
+        with open(f'{filepath}/histories.pickle', 'wb') as f:
+            pickle.dump(histories, f)
+        with open(f'{filepath}/val_accuracies.pickle', 'wb') as f:
+            pickle.dump(val_accuracies, f)
+        results_df = pd.DataFrame(all_results)
+        results_df.to_csv(f'{filepath}/grid_search_results.csv', index=False)
+
+        return histories, val_accuracies
+
+    else:
+        results = pd.read_csv(f'{filepath}/grid_search_results.csv')
+        return results.sort_values(by=['val_accuracy'], ascending=False)
+
+
 def cnn_grid_search(param_grid, filepath='./out/grid_search/cnn', verbose=False):
 
     X_train, X_test, y_train, y_test = load_and_preprocess_data('./data/F_MNIST_data', dataset_name='F_MNIST', normalize=True, mlp=False)
@@ -531,7 +716,20 @@ if __name__ == '__main__':
 
     ### Grid Search ###
     ## MLP ##
-    # TODO
+    param_grid = {
+        'epochs': [50],
+        'batch_size': [128],
+        'lr': [0.01],
+        'momentum': [0.95],
+        'decay': [1e-7],
+        'regularization': ['l1', 'l2'],
+        'lambd': [5e-3, 1e-3, 1e-4]
+    }
+    #mlp_grid_search(param_grid, verbose=True)
+
+    ## Regularization Constants ##
+    regularization_grid_search(param_grid, verbose=True)
+    exit()
 
     ## CNN ##
     param_grid = {
