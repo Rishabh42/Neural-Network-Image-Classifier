@@ -61,18 +61,22 @@ def compare_training_histories(histories, titles, filename=None, show=True, num_
         plt.show()
 
 
-def compare_accuracies(histories, labels, figsize=(8, 4), plot_train=True, 
+def compare_accuracies(histories, labels, num_saves_per_epoch=1, figsize=(8, 4), plot_train=True, 
                        title='', filename=None, show=True):
     """Compares the accuracies from multiple training histories on a single plot."""
 
     plt.figure(figsize=figsize)
 
+    train_loss = histories[0]['train_loss']
+    num_epochs = len(train_loss) / num_saves_per_epoch
+    x_axis_values = np.linspace(0, num_epochs, len(train_loss))
+
     for history, label in zip(histories, labels):
         if plot_train:
-            plt.plot(history['train_acc'], label=f'Train ({label})')
-            plt.plot(history['test_acc'], label=f'Test ({label})')
+            plt.plot(x_axis_values, history['train_acc'], label=f'Train ({label})')
+            plt.plot(x_axis_values, history['test_acc'], label=f'Test ({label})')
         else:
-            plt.plot(history['test_acc'], label=label)
+            plt.plot(x_axis_values, history['test_acc'], label=label)
 
     plt.title(title)
     plt.xlabel('Epoch')
