@@ -2,6 +2,7 @@ import numpy as np
 import torch
 from torchvision import datasets, transforms
 from sklearn.preprocessing import OneHotEncoder
+from sklearn.decomposition import TruncatedSVD
 
 
 def load_and_preprocess_data(data_dirname, dataset_name, normalize=True, mlp=True):
@@ -48,3 +49,10 @@ def load_and_preprocess_data(data_dirname, dataset_name, normalize=True, mlp=Tru
         return X_train, X_test, y_train_oh, y_test_oh
 
     return X_train, X_test, y_train, y_test
+
+def pca_reduce(X_train, X_test, n_components=10):
+    svd = TruncatedSVD(n_components, random_state=42)
+    A_train = svd.fit_transform(X_train)
+    A_test = svd.transform(X_test)
+
+    return A_train, A_test
