@@ -347,7 +347,8 @@ def exp7(params_mlp, params_cnn, filepath='./out/exp7', verbose=True):
     epochs = params_mlp['epochs']
     batch_size = params_mlp['batch_size']
     optimizer_kwargs = {'lr': params_mlp['lr'], 
-                        'momentum': params_mlp['momentum']}
+                        'momentum': params_mlp['momentum'],
+                        'decay': params_mlp['decay']}
     optimizer_name = params_mlp['optimizer']
     if optimizer_name == 'SGD':
         optimizer = SGD(**optimizer_kwargs)
@@ -429,7 +430,7 @@ def exp8(lr_sgd, lr_adam, filepath='./out/exp8', conv1_out=32, conv2_out=64, str
 
     histories = []
     final_accuracies = []
-    momentums = [0, 0.5, 0.9, 0.99]
+    momentums = [0, 0.5, 0.75, 0.9, 0.99]
 
     for momentum in momentums:
         print(f"Training with momentum={momentum}...")
@@ -470,6 +471,7 @@ def exp8(lr_sgd, lr_adam, filepath='./out/exp8', conv1_out=32, conv2_out=64, str
     num_saves_per_epoch = np.floor(len(trainloader) / 150)
     compare_training_histories(histories, titles=titles, filename=f'{filepath}/training_histories.png', 
                                num_saves_per_epoch=num_saves_per_epoch, show=False)
+    compare_accuracies(histories, labels=titles, num_saves_per_epoch=num_saves_per_epoch, plot_train=False, filename=f'{filepath}/accuracies.png', show=False)
 
     return histories, final_accuracies
 
@@ -777,8 +779,7 @@ if __name__ == '__main__':
     #mlp_grid_search(param_grid, verbose=True)
 
     ## Regularization Constants ##
-    regularization_grid_search(param_grid, verbose=True)
-    exit()
+    #regularization_grid_search(param_grid, verbose=True)
 
     ## CNN ##
     param_grid = {
@@ -798,51 +799,55 @@ if __name__ == '__main__':
     ## Experiment 1 ##
     optimizer_kwargs = {
         'lr': 0.01, 
-        'momentum': 0.9
+        'momentum': 0.95,
+        'decay': 1e-7
         }
     optimizer = 'SGD'
-    batch_size = 64
+    batch_size = 128
     epochs = 50
     #exp1(optimizer_kwargs, optimizer_name=optimizer, epochs=epochs, batch_size=batch_size)
 
     ## Experiment 2 ##
     optimizer_kwargs = {
         'lr': 0.01, 
-        'momentum': 0.9
+        'momentum': 0.95,
+        'decay': 1e-7
         }
     optimizer = 'SGD'
-    batch_size = 64
+    batch_size = 128
     epochs = 25
     #exp2(optimizer_kwargs, optimizer_name=optimizer, epochs=epochs, batch_size=batch_size)
         
     ## Experiment 3 ##
     optimizer_kwargs = {
         'lr': 0.01, 
-        'momentum': 0.9
+        'momentum': 0.95,
+        'decay': 1e-7
         }
     optimizer = 'SGD'
-    batch_size = 64
+    batch_size = 128
     epochs = 25
     #exp3(optimizer_kwargs, optimizer_name=optimizer, epochs=epochs, batch_size=batch_size)
 
     ## Experiment 4 ##
     optimizer_kwargs = {
         'lr': 0.01, 
-        'momentum': 0.9,
-        'lambd': 0.001
+        'momentum': 0.95,
+        'decay': 1e-7
         }
     optimizer = 'SGD'
-    batch_size = 64
+    batch_size = 128
     epochs = 25
     #exp4(optimizer_kwargs, optimizer_name=optimizer, epochs=epochs, batch_size=batch_size)
 
     ## Experiment 5 ##
     optimizer_kwargs = {
         'lr': 0.01, 
-        'momentum': 0.9
+        'momentum': 0.95,
+        'decay': 1e-7
         }
     optimizer = 'SGD'
-    batch_size = 64
+    batch_size = 128
     epochs = 25
     #exp5(optimizer_kwargs, optimizer_name=optimizer, epochs=epochs, batch_size=batch_size)
 
@@ -865,9 +870,10 @@ if __name__ == '__main__':
     params_mlp = {
         'hidden_layer_size': 128,
         'epochs': 25,
-        'batch_size': 64,
+        'batch_size': 128,
         'lr': 0.01,
-        'momentum': 0.9,
+        'momentum': 0.95,
+        'decay': 1e-7,
         'optimizer': 'SGD'
     }
     params_cnn = {
@@ -882,11 +888,11 @@ if __name__ == '__main__':
         'momentum': 0.9,
         'optimizer': 'SGD'
     }
-    #exp7(params_mlp, params_cnn, verbose=True)
+    exp7(params_mlp, params_cnn, verbose=True)
 
     ## Experiment 8 ##
     lr_sgd = 0.01
-    lr_adam = 0.001
+    lr_adam = 0.001 # default adam
     conv1_out = 32
     conv2_out = 64
     stride = 1
@@ -900,4 +906,4 @@ if __name__ == '__main__':
     fc_layers = [512, 256]
     epochs = 5
     batch_size = 16
-    exp9(fc_layers=fc_layers, epochs=epochs, batch_size=batch_size, verbose=True)
+    #exp9(fc_layers=fc_layers, epochs=epochs, batch_size=batch_size, verbose=True)
