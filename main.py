@@ -16,7 +16,7 @@ from utils.loss_functions import CrossEntropyLoss
 from utils.optimizers import SGD, Adam
 from models.mlp import MLP
 from models.cnn import CNN
-from utils.data_acquisition import load_and_preprocess_data
+from utils.data_acquisition import load_and_preprocess_data, pca_reduce
 from utils.plotting import compare_training_histories, plot_training_history, compare_accuracies
 
 
@@ -302,6 +302,71 @@ def exp5(optimizer_kwargs, optimizer_name, filepath='./out/exp5/', epochs=50, ba
 
     compare_training_histories(histories, titles=data_modes, 
                                 filename=f'{filepath}/training_histories.png', show=False)
+    compare_accuracies(histories, labels=data_modes, plot_train=False,
+                       filename=f'{filepath}/accuracies.png', show=False)
+
+    return histories, final_accuracies
+
+def exp5_pca(optimizer_kwargs, optimizer_name, ranks, dataset_name, filepath='./out/exp5_pca/', epochs=50, batch_size=256, verbose=True):
+
+    assert ranks[0] == 'Full', 'Full rank baseline must be first'
+
+    histories = []
+    final_accuracies = []
+    if dataset_name == 'F_MNIST':
+        X_train, X_test, y_train_oh, y_test_oh = load_and_preprocess_data('./data/F_MNIST_data', dataset_name='F_MNIST')
+    else:
+        X_train, X_test, y_train_oh, y_test_oh = load_and_preprocess_data('./data/cifar10_data', dataset_name='CIFAR10', normalize=True, mlp=True)
+
+    for rank in ranks:
+        if rank == 'Full':
+            X_train_rank, X_test_rank = X_train, X_test
+        else:
+            X_train_rank, X_test_rank = pca_reduce(X_train, X_test, n_components=rank)
+
+        print(f"Training on data of rank: {rank}, {X_train_rank.shape}")
+        model = MLP(
+            layer_sizes=[X_train_rank.shape[1], 128, 128, y_train_oh.shape[1]],
+            act_fn=ReLU(),
+            loss_fn=CrossEntropyLoss(),
+            softmax_fn=Softmax(),
+            weight_initializer=kaiming,
+        )
+
+        if optimizer_name == 'SGD':
+            optimizer = SGD(**optimizer_kwargs)
+        elif optimizer_name == 'Adam':
+            optimizer_kwargs.pop('momentum', None)
+            optimizer = Adam(**optimizer_kwargs)
+
+        history = model.fit(
+            X_train_rank, y_train_oh, optimizer, X_test=X_test_rank, y_test=y_test_oh,
+            epochs=epochs, batch_size=batch_size, verbose=verbose
+        )
+
+        histories.append(history)
+
+        # Calculate and record the final test accuracy
+        final_test_acc = np.mean(np.argmax(model.forward(X_test_rank)[-1], axis=1) == np.argmax(y_test_oh, axis=1))
+        final_accuracies.append((f"Rank {rank}", final_test_acc))
+
+        print(f"Model train with rank {rank} data - Final Test Accuracy: {final_test_acc:.4f}\n")
+
+    # save histories
+    with open(f'{filepath}/histories.pickle', 'wb') as f:
+        pickle.dump(histories, f)
+
+    # Save final accuracies
+    with open(f'{filepath}/final_accuracies.pickle', 'wb') as f:
+        pickle.dump(final_accuracies, f)
+
+    # save plots
+    data_modes = [f'Rank {rank}' for rank in ranks[1:]]
+    data_modes = ['Full Rank'] + data_modes
+
+
+    compare_training_histories(histories, titles=data_modes,
+                               filename=f'{filepath}/training_histories.png', show=False)
     compare_accuracies(histories, labels=data_modes, plot_train=False,
                        filename=f'{filepath}/accuracies.png', show=False)
 
