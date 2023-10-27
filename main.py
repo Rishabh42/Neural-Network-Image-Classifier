@@ -953,7 +953,7 @@ if __name__ == '__main__':
         'momentum': 0.9,
         'optimizer': 'SGD'
     }
-    exp7(params_mlp, params_cnn, verbose=True)
+    #exp7(params_mlp, params_cnn, verbose=True)
 
     ## Experiment 8 ##
     lr_sgd = 0.01
