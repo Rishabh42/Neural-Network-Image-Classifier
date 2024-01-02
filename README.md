@@ -1,5 +1,6 @@
 # Neural Network Image Classifier
-**Description:** This project dives into comparing Multi-Layer Perceptrons (MLPs) and Convolutional Neural Networks (CNNs) for image classification using Fashion MNIST and CIFAR-10 datasets. We explore various factors impacting their performance, such as depth, activation functions, and initialization methods.
+**Description:** This project dives into comparing Multi-Layer Perceptrons (MLPs) and Convolutional Neural Networks (CNNs) for image classification using Fashion MNIST and CIFAR-10 datasets. 
+* We explored various factors impacting their performance, such as depth, activation functions, and initialization methods.
 * The best MLP achieved 88.61% accuracy on Fashion MNIST and 50.11% on CIFAR-10, while the CNN outperformed with 91.4% and 71.7% accuracy, respectively.
 * Our discoveries show that CNNs are better for classifying images compared to MLPs.
 
