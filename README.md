@@ -32,7 +32,8 @@ jupyter notebook
   
 **2. Explore the Code:**
 * Review the codebase:
-  - `models/models.py` - contains the CNN and MLP models
+  - `models/cnn.py` - contains the CNN model
+  - `models/mlp.py` - contains the MLP model
   - `models/optimizers.py` - contains the optimizers (SGD and Adam)
  
 **3. Customize and Experiment:**
