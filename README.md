@@ -5,8 +5,8 @@ Before running the project, you need to set up the required environment. Follow 
 
 **1. Clone the Repository:**
 ```
-git clone https://github.com/j-c-carr/Linear-and-Logistic-Regression.git
-cd Linear-and-Logistic-Regression
+git clone https://github.com/Rishabh42/Neural-Network-Image-Classifier.git
+cd Neural-Network-Image-Classifier
 ```
 **2. Create a Virtual Environment (Optional but Recommended):**
 ```
@@ -28,12 +28,11 @@ jupyter notebook
 ```
 * Open the relevant Jupyter notebooks, such as:
   - `experiments.ipynb` - contains all of the linear and logistic regression experiments
-  - `data_analysis/boston_analysis.ipynb`
-  - `data_analysis/wine_analysis.ipynb`
+  - `data_analysis/A2_analysis.ipynb`
   
 **2. Explore the Code:**
 * Review the codebase:
-  - `models/models.py` - contains the linear and logistic regression models
+  - `models/models.py` - contains the CNN and MLP models
   - `models/optimizers.py` - contains the optimizers (SGD and Adam)
  
 **3. Customize and Experiment:**
